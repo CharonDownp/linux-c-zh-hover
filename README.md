@@ -1,135 +1,139 @@
-# Linux C 函数中文悬停速查 v1.4.0（AI + 可编辑中文解释）
+# Linux C 函数中文悬停速查
 
-这是一个独立的 VS Code 扩展（无第三方运行时依赖）。面向 Linux C 初学者，尤其适合学习文件 I/O、管道、共享内存、进程、线程、网络接口时随时查看**函数作用、参数、成功返回什么、失败返回什么**。
+> 一个面向 Linux C 初学者的 VS Code 扩展：鼠标悬停，快速查看函数与宏的中文作用、参数、成功/失败返回值；不认识的 API 还可以使用 AI 辅助解释。
 
-> **升级兼容：** 保持与 v1.0.0 / v1.1.0 相同的扩展 ID：`local-study-tools.zh-linux-api-hover`。可直接安装 v1.4.0 VSIX 覆盖升级。原有的 **245** 个内置中文函数与宏仍然保留。
+**当前版本：v1.4.0** · **运行环境：VS Code 1.75+** · **许可证：MIT**
 
-## v1.4.0 新增：直接编辑中文解释（不用 AI）
+本项目适合学习文件 I/O、进程与线程、管道、共享内存、信号量、Socket 等 Linux C 编程知识时使用。插件带有约 **245 个内置离线函数与宏**；不配置 AI 也可以使用内置中文速查功能。
 
-1. 在 `.c` / `.cpp` 文件中鼠标悬停函数名，例如 `clock_gettime`，点击 **“✏️ 编辑解释”**。
-2. 进入专门的编辑页面：上半部分是 **简洁版**（默认悬停显示）；下半部分是 **详细版**（“查看完整解释”显示）。作用、参数、返回值、补充说明均可以单独修改，参数每行一项。
-3. 点击 **“💾 保存全部修改”**。再次悬停或重新打开“完整解释”，即可看到新内容。
-4. 命令面板也新增 **`Linux C 中文速查: 编辑当前函数的中文解释（简洁版与详细版）`**，选中函数或手动输入名称即可编辑；右键 C 代码也有同名命令。
+## ✨ 主要功能
 
-**存储规则：** 编辑内置函数、AI 缓存函数或用户离线函数后，新的解释保存在 VS Code 扩展独立的 `offline-library.json` 中，优先于原始内置资料及 AI 缓存。原内置数据与 AI 缓存不会被修改，不需要 API Key，也不会发送网络请求。升级同 ID 插件时数据通常会保留。
+- **悬停中文速查**：显示函数原型、用途、参数，以及成功和失败返回值。
+- **简洁 / 详细双模式**：悬停默认只显示重点；点击 **「📖 查看完整解释」** 阅读完整说明。
+- **AI 辅助解释**：查询未收录函数，支持自定义 OpenAI Chat Completions 兼容 API 地址和模型。
+- **本地缓存与永久离线库**：AI 结果可缓存，确认无误后保存到个人离线库；支持新增、删除、导入、导出。
+- **编辑中文解释（v1.4.0）**：可修改内置、AI 缓存及个人词条的**简洁版和详细版**；修改仅覆盖用户本地显示，不改动原始内置数据。
+- **网络故障处理**：支持可配置超时、临时错误重试、HTTP(S) 代理以及网络连通性诊断。
 
-**恢复原内容：** `Ctrl+Shift+P` → **`Linux C 中文速查: 管理离线函数与宏库`** → 删除对应的用户离线词条。若此函数原本在内置库中，删除后自动恢复原内置说明；若原本只在 AI 缓存，则显示剩余缓存（若缓存仍存在）。修改前建议通过导出功能备份。
+### 🆕 v1.4.0 更新亮点
 
-**兼容：** 旧版离线库、AI 缓存继续使用；新增字段 `brief` 专门保存人工修改的简洁说明，历史词条没有该字段时仍自动从详细说明生成简洁版。导出的 JSON 包含人工编辑的简洁版和详细版，不包含 API Key。
+新增 **「✏️ 编辑解释」**：悬停函数名即可打开编辑页面，调整中文作用、参数说明、返回值与注意事项，并保存为本地覆盖词条。
 
-## v1.3.0 新增：默认简洁速览 + 保留完整解释
+> 完整版本记录请参阅 [CHANGELOG.md](CHANGELOG.md)。
 
-函数鼠标悬停时**默认只显示**：原型、一句话作用、精简参数、成功/失败返回值。以 `clock_gettime()` 为例，`clockid` 和 `tp` 不再输出一整页细节。
+## 🚀 安装与使用
 
-点击悬停底部的 **“📖 查看完整解释”**，会在侧边编辑器完整显示原说明（包括参数细节、注意事项与来源），**不会再调用 AI**。原有 v1.2.x 的六字段永久离线库、AI 缓存、内置库无需修改、无需重新生成。
+### 安装扩展
 
-如果需要在悬停框内同时看到简洁版和详细版，可以在设置中将 `zhLinuxApiHover.hover.detailMode` 设为 `full`，默认 `compact`。简洁版是对旧内容做句子级裁剪，碰到特殊情况或不明确的返回值应查看详细版或官方 man 文档。
+1. 获取当前版本的 `zh-linux-api-hover-1.4.0.vsix` 安装包（正式发布时可放在仓库的 **Releases** 页面）。
+2. 在 VS Code 中按 `Ctrl + Shift + P`，运行 **`Extensions: Install from VSIX...`**。
+3. 选择 `.vsix` 文件，安装后运行 **`Developer: Reload Window`**。
+4. 打开 `.c` 或 `.cpp` 文件，将鼠标悬停在 `read(...)`、`waitpid(...)` 或 `shm_open(...)` 等函数名上。
 
-## v1.3.0 新增：网络错误分类、自动重试与代理
-
-- 默认 `zhLinuxApiHover.ai.retryCount = 1`：遇到 DNS 暂时失败、连接重置、请求超时、HTTP 429 / 502 / 503 / 504 等临时错误时再试一次。**POST 请求可能已被服务器接收；重试有潜在重复计费风险**。可设 `0` 关闭，最多 `2` 次。
-- 不对 HTTP 400/401/403/404 等明显配置/鉴权错误自动重试，避免浪费额度。
-- 失败时尝试明确指出是 DNS、端口拒绝、HTTPS 证书、超时还是 HTTP 状态。可点“查看网络日志”，在输出面板查看错误分类（不会记录完整 API Key）。
-- 对需要代理的 Ubuntu，设置 `zhLinuxApiHover.ai.proxyUrl`，例如 `http://127.0.0.1:7890`。仅支持 **HTTP / HTTPS 代理**，HTTPS API 通过 CONNECT 建立 TLS 隧道；暂不支持 SOCKS 或需要用户名密码的代理。留空则插件请求直连，请按实际网络情况设置。
-- `man` 摘录优先保留函数原型、作用、返回值与错误代码等段落，以减少冗长提示造成的超时。
-
-## 一、安装
-
-在 Ubuntu 的 VS Code 中：`Ctrl+Shift+P` → `Extensions: Install from VSIX...` → 选择 `zh-linux-api-hover-1.4.0.vsix` → `Developer: Reload Window`。
-
-或者在 Ubuntu 终端：
+也可以在 Ubuntu 终端安装：
 
 ```bash
-code --install-extension /实际路径/zh-linux-api-hover-1.4.0.vsix --force
+code --install-extension /path/to/zh-linux-api-hover-1.4.0.vsix --force
 ```
 
-打开 `.c` 或 `.cpp` 文件，鼠标悬停在 `shm_open(...)`、`waitpid(...)`、`read(...)` 等函数名上，立即看到中文说明。与 Microsoft C/C++ 扩展可以共存。
+### 简洁速查与完整解释
 
-## 二、接入 AI API（第一次使用）
+默认悬停只展示 **函数原型、作用、主要参数、成功/失败返回值**。点击 **「📖 查看完整解释」** 可阅读详细说明，无需再次请求 AI。
 
-1. `Ctrl+Shift+P`，输入 **`Linux C 中文速查: 配置 AI 接口（地址 / 模型 / API Key）`**。
-2. 输入你的 **OpenAI Chat Completions 兼容接口** Base URL（例如 `https://your-provider.example/v1`），不要附带 Key。也允许完整的 `.../chat/completions` URL。
-3. 输入提供商给出的准确 **模型 ID**（必须是可用于 Chat Completions 的模型）。
-4. 输入 **API Key**，通过 VS Code 的 `SecretStorage` 存储，不写入 `settings.json`、代码文件或导出的词库。
-5. 可以通过命令 `Linux C 中文速查: 设置 / 删除 API Key（安全存储）` 单独更改/删除密钥。
-6. 如果提示配置不完整，请执行 **`Linux C 中文速查: 检查 AI 配置状态（不显示密钥）`**，会逐项检查 Base URL、模型和密钥是否存在，且不泄露密钥。
+如果希望悬停时同时显示全文，可将 VS Code 设置 `zhLinuxApiHover.hover.detailMode` 修改为 `full`（默认 `compact`）。
 
-**v1.2.1 起的修复：** 以前即使没有密钥也可能提示“配置已保存”；现在只有 API 地址、模型和密钥都能读到，才会显示“配置完整”。如果只在 `settings.json` 填写 API Key，插件不会读取；请通过扩展命令安全存储。
+### ✏️ 修改现有解释
 
-**重要：** 默认使用“手动查询”：单纯悬停在不认识的函数上**不会**自动发起付费请求。悬停未知函数时点击 **“🤖 查询中文参数和返回值”** 才请求 AI；也可右键选 **“使用 AI 查询函数”**。如果切换到自动悬停模式，会有意外消耗 Token 的可能。
+1. 在 `.c` / `.cpp` 文件中悬停函数名，点击 **「✏️ 编辑解释」**。
+2. 分别修改简洁版和详细版内容。
+3. 点击 **「保存全部修改」**，再次悬停即可查看新内容。
 
-API 只向用户提供的服务地址发送**函数名称**以及（如果本机有）`man` 手册中相关内容；**不会上传整个 C 项目或当前源代码**。扩展对公网 API 要求 HTTPS；仅允许 localhost/127.0.0.1/::1 使用 HTTP。本扩展不会收集、上传 API Key 到其他服务器。API 服务商仍能收到并处理你的请求，费用与数据政策由服务商决定。
+也可以按 `Ctrl + Shift + P`，运行 **`Linux C 中文速查: 编辑当前函数的中文解释（简洁版与详细版）`**。
 
-**兼容范围**：`POST /v1/chat/completions` 风格，响应结构应有 `choices[0].message.content` 文本。并不是所有宣称“OpenAI 兼容”的中转站或模型都兼容。若模型不支持此接口，需要换用兼容的模型或网关。若 AI 输出不符合结构、模型拒答或请求失败，会显示错误而不会保存错误内容。
+修改结果保存到**个人永久离线库**。如果编辑了内置函数，原始内置资料不会被覆盖；通过 **「管理离线函数与宏库」** 删除对应的个人覆盖词条，即可恢复内置说明。建议定期导出个人离线库备份。
 
-### AI 请求超时排查
+## 🤖 配置 AI（可选）
 
-1. 当前默认 90 秒；也可在 VS Code 设置中修改 `zhLinuxApiHover.ai.timeoutMs`（范围 5000～120000 毫秒）。
-2. 按 `Ctrl+Shift+P` 执行 **`Linux C 中文速查: 测试 AI 接口网络连通性（无需消耗 Token）`**。它发送不带 API Key 的 GET 请求，不调用模型；即使返回 401、404、405 也说明服务器有 HTTP 响应。网络成功不代表模型或 POST 请求成功。
-3. 若此测试也超时，先检查 Ubuntu VM 网络、DNS，并考虑在本插件的 `ai.proxyUrl` 显式填写代理地址；VS Code 浏览器代理设置不一定自动被本插件的 Node 请求继承。若测试可达但模型调用超时，检查模型响应速度及 `chat/completions` 接口兼容性。
-4. 从不要求用户在诊断截图中暴露密钥，不会在诊断命令发送 API Key。
+> 不配置 API Key 也可以使用内置的离线函数速查。
 
-## 三、缓存与永久离线库
+1. 按 `Ctrl + Shift + P`，运行 **`Linux C 中文速查: 配置 AI 接口（地址 / 模型 / API Key）`**。
+2. 填写兼容 **OpenAI Chat Completions** 的 API Base URL，例如 `https://your-provider.example/v1`。
+3. 填写服务商实际提供的**模型 ID**。
+4. 输入 API Key；密钥由 VS Code **SecretStorage** 保存，不写入 `settings.json` 或源码。
+5. 鼠标悬停未收录的函数时，点击 **「🤖 查询中文参数和返回值」**。
 
-扩展提供 3 层来源，优先顺序如下：
+**默认使用手动 AI 查询**，仅悬停不会自动产生 API 请求和费用。查询成功后可以保存在缓存中，并按需手动转存为永久离线词条。
 
-1. **自定义永久离线库**：你主动保存或手工维护的函数和宏，优先显示，即使升级也不覆盖。
-2. **内置离线库**：原来的 245 个函数/宏，默认直接秒开，无须 AI。
-3. **AI 查询缓存**：只有上述两层缺失时才读取；仍然没有才可以请求 API。
+如果忘记配置位置，在命令面板搜索 `Linux C 中文速查`。常用命令还有：
 
-AI 查询成功后会自动放进缓存，**但是默认不会自动成为永久词条**，需要确认保存。这是为了减少 AI 错误长期污染词库。
+- **设置 / 删除 API Key（安全存储）**
+- **检查 AI 配置状态（不显示密钥）**
+- **测试 AI 接口网络连通性（无需消耗 Token）**
+- **清空 AI 查询缓存**
+- **管理离线函数与宏库**
 
-### 保存 AI 解释到离线词库
+### AI 相关设置
 
-查询未知函数 → AI 返回中文说明 → 在通知中选择 **“保存到永久离线库”**，或者再次悬停后点 **“📌 保存到离线函数库”**。
+在 VS Code 设置中搜索 `zhLinuxApiHover`：
 
-保存后即使你断网、换用另一个模型、清除 AI 缓存，永久离线库中的词条仍然可查。保存在 VS Code 扩展的 `globalStorageUri` 文件夹下，不写入插件安装目录。
-
-### 可调的设置项
-
-VS Code 设置搜索“Linux C 中文速查”，或用 `Ctrl+,` 打开设置：
-
-| 设置 | 默认值 | 含义 |
+| 设置项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `zhLinuxApiHover.ai.baseUrl` | 空 | API URL；绝不在这里放 Key |
-| `zhLinuxApiHover.ai.model` | 空 | 提供商模型 ID |
-| `zhLinuxApiHover.ai.hoverMode` | `manual` | `manual` 为点击才查；`auto` 为未知函数悬停自动查 |
-| `zhLinuxApiHover.ai.saveMode` | `manual` | `manual` 人工转存；`auto` 新词条自动加入永久离线库；`off` 关闭自动转存 |
-| `zhLinuxApiHover.ai.cacheEnabled` | `true` | 保存 AI 查询缓存，下次复用 |
-| `zhLinuxApiHover.ai.timeoutMs` | `90000` | AI 请求超时毫秒数 |
-| `zhLinuxApiHover.hover.detailMode` | `compact` | `compact` 仅精简悬停 + 详细页面；`full` 悬停同时显示简洁和全文 |
-| `zhLinuxApiHover.ai.retryCount` | `1` | 临时网络故障最多自动重试次数（0～2） |
-| `zhLinuxApiHover.ai.proxyUrl` | 空 | 自选 HTTP(S) 代理地址，留空直连 |
+| `zhLinuxApiHover.ai.baseUrl` | 空 | API 接口地址（不要填 API Key） |
+| `zhLinuxApiHover.ai.model` | 空 | 模型 ID |
+| `zhLinuxApiHover.ai.hoverMode` | `manual` | `manual` 手动查询；`auto` 未收录函数悬停自动查询 |
+| `zhLinuxApiHover.ai.saveMode` | `manual` | `manual` 手动转存；`auto` 自动转存；`off` 关闭自动转存 |
+| `zhLinuxApiHover.ai.cacheEnabled` | `true` | 是否启用 AI 查询缓存 |
+| `zhLinuxApiHover.ai.timeoutMs` | `90000` | 请求超时，单位毫秒 |
+| `zhLinuxApiHover.ai.retryCount` | `1` | 临时错误最多自动重试次数（0～2） |
+| `zhLinuxApiHover.ai.proxyUrl` | 空 | 可选 HTTP(S) 代理地址；留空直连 |
+| `zhLinuxApiHover.hover.detailMode` | `compact` | `compact` 简洁悬停；`full` 悬停显示全文 |
 
-`saveMode=off` **不会阻止用户手动选择保存**。`saveMode=auto` 可能将未核验的模型输出持久化，建议保持 `manual`。
+**注意**：临时错误重试可能导致重复 API 计费；自动查询模式也可能增加 Token 消耗。插件只支持 HTTP(S) 代理，不直接支持 SOCKS 代理。
 
-## 四、查询 / 管理离线库
+## 📚 数据与隐私
 
-通过 `Ctrl+Shift+P`，搜索 **`Linux C 中文速查`**：
+优先显示顺序：**个人永久离线库 → 内置离线库 → AI 查询缓存**。
 
-- `搜索离线函数与宏（中文）`：查看内置 + 自定义函数，或选择 AI 查询未知函数。
-- `管理离线函数与宏库`：浏览、手动新增、编辑、删除自定义词条；还可以导入/导出整个离线库。
-- `重新载入离线函数库 JSON`：手工编辑完 JSON 后生效。
-- `清空 AI 查询缓存`：仅清缓存，不删除 245 个内置说明及你的自定义永久库。
-- `使用 AI 重新生成当前函数解释`：强制查询，用于纠正旧 AI 说明。若已存在永久离线词条，重新生成的结果只进入缓存；覆盖时需要你再次确认。
+- 内置函数和宏随扩展安装；个人词条和缓存独立保存在 VS Code 的扩展存储中，正常同 ID 升级通常不会覆盖。
+- 个人离线库支持导入、导出 JSON，**导出文件不包含 API Key**。升级或迁移设备前，建议自行备份。
+- AI 查询会把函数名及可用的本机 `man` 文档摘录发送给**你配置的 API 服务商**；不会主动发送整个项目源码。
+- API Key 保存在 VS Code 安全存储中；使用第三方 API 时仍应了解服务商的费用、隐私与数据政策。
 
-**备份**：导出文件只包含你的自定义永久离线知识，不含内置条目、AI 缓存或 API Key。可以在 Ubuntu 和 Windows 的 VS Code 之间迁移。
+## 🛠️ 开发与测试
 
-## 五、局限与准确性
+插件主体基于 JavaScript、VS Code Extension API 与 Node.js 内置模块，无第三方运行时依赖。
 
-- AI 说明不是官方文档。扩展会尝试获取当前环境的 `man` 文档作为参考；无相关 `man` 页时明确提示“仅 AI 推断（未核验）”。
-- 系统调用返回值与库函数返回值没有统一标准，例如 `pthread_create` 的非 0 返回是错误编号，而 `sem_open` 失败返回 `SEM_FAILED`。
-- 识别函数名使用静态词库和后接 `(` 的启发式检测；不能严格区分所有 C++ 重载函数与同名自定义函数，使用 AI 前请检查函数来源。
-- 不保证 AI 能识别任意第三方 API；当模型不能确认时不会自动保存。
-- 本版本已经在提供的运行环境中进行 Node.js 语法检查、模拟 VS Code API 测试及本地 HTTP 模拟服务测试；**尚未在你的 Ubuntu VS Code 上进行实际安装/网络实测**。
-
-## 六、开发和测试
-
-需要 Node.js（运行时仅使用 VS Code API 与 Node 内置模块）：
+在项目根目录运行：
 
 ```bash
 node --check extension.js
 node test/run-tests.js
 ```
 
-本项目为学习辅助工具，不是课程出品方或 VS Code 官方提供的插件。
+项目结构（节选）：
+
+```text
+├── extension.js           # VS Code 扩展入口
+├── builtin-docs.js       # 内置基础函数数据
+├── additional-docs.json  # 补充函数与宏的数据
+├── categories.json       # 分类数据
+├── lib/                  # AI、存储、网络请求与简洁解释逻辑
+├── test/                 # 自动化测试
+├── tools/                # VSIX 打包工具
+├── README.md             # 项目介绍和使用指南
+├── CHANGELOG.md          # 版本更新记录
+└── LICENSE               # MIT 许可证
+```
+
+## ⚠️ 使用范围与局限
+
+- AI 解释**不能替代**官方文档；当解释有歧义时，以本机 `man` 手册、头文件和官方文档为准。
+- 扩展使用词法启发式判断函数名，不能在所有场景下识别同名自定义函数或 C++ 重载。
+- AI 采用 Chat Completions 风格接口，并非所有“兼容 OpenAI”的网关或模型都支持。
+- 代理地址需符合运行环境：当 VS Code 在 Ubuntu 虚拟机中运行时，`127.0.0.1` 指的是**虚拟机本身**，不是 Windows 物理机。
+
+## 📄 开源协议
+
+本项目基于 [MIT License](LICENSE) 开源。版权署名请以 `LICENSE` 文件为准。
+
+本项目是独立的学习辅助工具，与 VS Code 官方或任何课程出品方没有隶属关系。
