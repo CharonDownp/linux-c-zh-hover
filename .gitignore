@@ -1,0 +1,10 @@
+node_modules/
+*.vsix
+*.vsixmanifest
+.env
+.env.*
+!*.env.example
+.vscode-test/
+*.log
+*.tmp
+.DS_Store

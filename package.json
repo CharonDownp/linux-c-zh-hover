@@ -1,0 +1,209 @@
+{
+  "name": "zh-linux-api-hover",
+  "displayName": "Linux C 函数中文悬停速查",
+  "description": "Linux/C 中文速查：可编辑简洁/详细中文解释、AI 缓存和永久离线库、可配置 AI 接口和网络重试。",
+  "version": "1.4.0",
+  "publisher": "local-study-tools",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "main": "./extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "onLanguage:c",
+    "onLanguage:cpp"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "zhLinuxApiHover.searchFunctions",
+        "title": "搜索离线函数与宏（中文）",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.explainFunction",
+        "title": "使用 AI 查询函数（当前光标 / 输入函数名）",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.showDetail",
+        "title": "查看函数完整中文解释",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.editExplanation",
+        "title": "编辑当前函数的中文解释（简洁版与详细版）",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.refreshFunction",
+        "title": "使用 AI 重新生成当前函数解释",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.saveOffline",
+        "title": "将 AI 解释保存到离线函数与宏库",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.manageOffline",
+        "title": "管理离线函数与宏库",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.configureApi",
+        "title": "配置 AI 接口（地址 / 模型 / API Key）",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.checkAiConfig",
+        "title": "检查 AI 配置状态（不显示密钥）",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.testAiNetwork",
+        "title": "测试 AI 接口网络连通性（无需消耗 Token）",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.setApiKey",
+        "title": "设置 / 删除 API Key（安全存储）",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.clearCache",
+        "title": "清空 AI 查询缓存",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.reloadOffline",
+        "title": "重新载入离线函数库 JSON",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.exportOffline",
+        "title": "导出自定义离线函数与宏库",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.importOffline",
+        "title": "导入自定义离线函数与宏库",
+        "category": "Linux C 中文速查"
+      }
+    ],
+    "configuration": {
+      "title": "Linux C 中文速查",
+      "properties": {
+        "zhLinuxApiHover.ai.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI 兼容 API 地址，如 https://api.example.com/v1。仅 localhost 可使用 HTTP。不包含密钥。"
+        },
+        "zhLinuxApiHover.ai.model": {
+          "type": "string",
+          "default": "",
+          "description": "调用的模型 ID，如 gpt-4.1-mini 或服务商提供的模型名。"
+        },
+        "zhLinuxApiHover.ai.hoverMode": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "auto"
+          ],
+          "default": "manual",
+          "enumDescriptions": [
+            "仅点击悬停链接或使用命令时调用 API",
+            "鼠标悬停未收录的函数时自动请求（可能产生费用）"
+          ],
+          "description": "未收录函数的 AI 查询模式。自动模式会发送函数名称及可用的本机 man 文本到配置的 API。"
+        },
+        "zhLinuxApiHover.ai.saveMode": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "auto",
+            "off"
+          ],
+          "default": "manual",
+          "enumDescriptions": [
+            "AI 解释先进入缓存，手动确认再存入离线库（推荐）",
+            "AI 解释成功后自动保存到永久离线库（可能保存错误内容）",
+            "永不自动保存到永久离线库"
+          ],
+          "description": "将 AI 查询结果升级为自定义永久离线词条的方式。手动操作优先于这个开关。"
+        },
+        "zhLinuxApiHover.ai.cacheEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "将 AI 查询结果保存在本地缓存中，避免重复请求。"
+        },
+        "zhLinuxApiHover.ai.timeoutMs": {
+          "type": "number",
+          "default": 90000,
+          "minimum": 5000,
+          "maximum": 120000,
+          "description": "AI 请求等待超时阈值（毫秒）。复杂模型建议 60000-120000；默认 90000。"
+        },
+        "zhLinuxApiHover.hover.detailMode": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "full"
+          ],
+          "default": "compact",
+          "enumDescriptions": [
+            "悬停只显示简洁版，点击链接打开完整说明（推荐）",
+            "悬停同时显示简洁版和详细版"
+          ],
+          "description": "中文悬停说明显示方式。完整资料始终保存在缓存或永久离线库。"
+        },
+        "zhLinuxApiHover.ai.retryCount": {
+          "type": "integer",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "AI POST 请求遇临时网络/服务器故障时最多自动重试次数（默认1次）。注意重试可能产生重复计费。"
+        },
+        "zhLinuxApiHover.ai.proxyUrl": {
+          "type": "string",
+          "default": "",
+          "description": "可选 HTTP/HTTPS 代理地址，例如 http://127.0.0.1:7890，留空则直连（扩展请求不保证继承浏览器代理）。不支持 SOCKS 和代理鉴权。"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "zhLinuxApiHover.explainFunction",
+          "when": "editorLangId == c || editorLangId == cpp",
+          "group": "navigation@8"
+        },
+        {
+          "command": "zhLinuxApiHover.editExplanation",
+          "when": "editorLangId == c || editorLangId == cpp",
+          "group": "navigation@9"
+        }
+      ]
+    }
+  },
+  "keywords": [
+    "Linux",
+    "C",
+    "hover",
+    "man",
+    "中文",
+    "API",
+    "共享内存",
+    "pthread",
+    "socket",
+    "AI",
+    "openai"
+  ],
+  "license": "MIT"
+}

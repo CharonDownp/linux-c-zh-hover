@@ -1,0 +1,2207 @@
+{
+  "fputc": [
+    "int fputc(int c, FILE *stream);",
+    "向文件流写入一个字符（一个字节）。",
+    [
+      "c：要写入的字符值",
+      "stream：目标文件流"
+    ],
+    "成功写入的字符值（按 unsigned char 转为 int）",
+    "EOF（写入失败）",
+    "和 write(fd,...) 不同，fputc 使用 FILE*。"
+  ],
+  "fgetc": [
+    "int fgetc(FILE *stream);",
+    "从文件流读取一个字符（字节）。",
+    [
+      "stream：来源文件流"
+    ],
+    "读到的 unsigned char 转换成 int",
+    "EOF（文件末尾或错误）",
+    "用 feof() / ferror() 区分 EOF 原因；返回类型是 int。"
+  ],
+  "getc": [
+    "int getc(FILE *stream);",
+    "从流中读取一个字符。",
+    [
+      "stream：输入流"
+    ],
+    "字符值（作为 int）",
+    "EOF（末尾或错误）",
+    "和 fgetc 类似，可能实现为宏。"
+  ],
+  "putc": [
+    "int putc(int c, FILE *stream);",
+    "向流中输出一个字符。",
+    [
+      "c：字符",
+      "stream：输出流"
+    ],
+    "写出的字符值",
+    "EOF",
+    "和 fputc 类似，可能实现为宏。"
+  ],
+  "getchar": [
+    "int getchar(void);",
+    "从标准输入 stdin 读取一个字符。",
+    [
+      "无参数"
+    ],
+    "读到的字符（转换为 int）",
+    "EOF（末尾或错误）",
+    "约等于 fgetc(stdin)。"
+  ],
+  "putchar": [
+    "int putchar(int c);",
+    "向标准输出 stdout 写出一个字符。",
+    [
+      "c：要写的字符"
+    ],
+    "写出的字符值",
+    "EOF",
+    "约等于 fputc(c, stdout)。"
+  ],
+  "puts": [
+    "int puts(const char *s);",
+    "向 stdout 输出字符串并自动添加换行。",
+    [
+      "s：以 \\0 结尾的字符串"
+    ],
+    "非负数",
+    "EOF",
+    "puts 会加换行，fputs 不会自动加。"
+  ],
+  "fscanf": [
+    "int fscanf(FILE *stream, const char *format, ...);",
+    "从指定 FILE* 流按格式读取并赋值。",
+    [
+      "stream：来源流",
+      "format：格式字符串",
+      "...：接收结果的变量地址"
+    ],
+    "成功赋值的项目数（可能为 0）",
+    "首次赋值前发生输入失败时返回 EOF",
+    "不是返回读到的字节数；匹配失败与 EOF 不同。"
+  ],
+  "sscanf": [
+    "int sscanf(const char *str, const char *format, ...);",
+    "从内存字符串按格式解析数据。",
+    [
+      "str：源字符串",
+      "format：格式",
+      "...：输出变量地址"
+    ],
+    "成功赋值的项目数（可能为 0）",
+    "首次转换前输入失败返回 EOF",
+    "不从文件或终端读取。"
+  ],
+  "feof": [
+    "int feof(FILE *stream);",
+    "检查是否已设置文件流的 EOF 标志。",
+    [
+      "stream：文件流"
+    ],
+    "EOF 标志存在时返回非零",
+    "未设置 EOF 标志返回 0",
+    "调用读取函数发现文件末尾后才可能置位，并非预判是否有数据。"
+  ],
+  "ferror": [
+    "int ferror(FILE *stream);",
+    "检查文件流是否发生过 I/O 错误。",
+    [
+      "stream：文件流"
+    ],
+    "错误标志存在时返回非零",
+    "无错误标志返回 0",
+    "与 feof 配合判断 fread/fgetc 读取不足原因。"
+  ],
+  "clearerr": [
+    "void clearerr(FILE *stream);",
+    "清除流的 EOF 和错误标志。",
+    [
+      "stream：文件流"
+    ],
+    "无返回值（void）",
+    "无独立错误返回值",
+    "仅清状态，不会自动修复真实错误。"
+  ],
+  "rewind": [
+    "void rewind(FILE *stream);",
+    "把文件流位置移到开头并清除错误标志。",
+    [
+      "stream：文件流"
+    ],
+    "无返回值（void）",
+    "无返回值可直接判断失败",
+    "需要判断错误时可用 fseek(stream,0,SEEK_SET)。"
+  ],
+  "ftell": [
+    "long ftell(FILE *stream);",
+    "取得流的当前文件位置指示值。",
+    [
+      "stream：文件流"
+    ],
+    "当前文件位置值",
+    "-1L（失败）",
+    "文本模式下不应把返回值简单当作字符索引。"
+  ],
+  "fgetpos": [
+    "int fgetpos(FILE *stream, fpos_t *pos);",
+    "取得当前文件位置并写入 pos。",
+    [
+      "stream：文件流",
+      "pos：接收位置的地址"
+    ],
+    "0",
+    "-1 之外的非零（通常 -1）",
+    "可以与 fsetpos 成对使用。"
+  ],
+  "fsetpos": [
+    "int fsetpos(FILE *stream, const fpos_t *pos);",
+    "恢复之前保存的文件位置。",
+    [
+      "stream：流",
+      "pos：fgetpos 保存的位置"
+    ],
+    "0",
+    "非零",
+    "pos 必须是该流的有效位置数据。"
+  ],
+  "setvbuf": [
+    "int setvbuf(FILE *stream, char *buf, int mode, size_t size);",
+    "设置标准 I/O 流的缓冲模式。",
+    [
+      "stream：目标流",
+      "buf：用户缓冲区或 NULL",
+      "mode：_IONBF/_IOLBF/_IOFBF",
+      "size：缓冲区大小"
+    ],
+    "0",
+    "非零",
+    "应在对流进行其他 I/O 操作前设置。"
+  ],
+  "fileno": [
+    "int fileno(FILE *stream);",
+    "从 FILE* 流中取得底层文件描述符。",
+    [
+      "stream：FILE* 文件流"
+    ],
+    "非负整数 fd",
+    "-1，同时设置 errno",
+    "不要混淆 fclose(stream) 与 close(fileno(stream))。"
+  ],
+  "fdopen": [
+    "FILE *fdopen(int fd, const char *mode);",
+    "把已有文件描述符包装成 FILE* 流。",
+    [
+      "fd：已有文件描述符",
+      "mode：兼容的流模式"
+    ],
+    "FILE* 流指针",
+    "NULL，同时设置 errno",
+    "不复制 fd，关闭流通常会关闭该 fd。"
+  ],
+  "freopen": [
+    "FILE *freopen(const char *path, const char *mode, FILE *stream);",
+    "重新关联一个现有标准 I/O 流到文件。",
+    [
+      "path：目标路径",
+      "mode：打开模式",
+      "stream：待重新关联的流"
+    ],
+    "成功返回 stream",
+    "NULL",
+    "可用于把 stdout 重定向到文件。"
+  ],
+  "creat": [
+    "int creat(const char *pathname, mode_t mode);",
+    "创建或截断文件并以只写方式打开。",
+    [
+      "pathname：文件路径",
+      "mode：新文件权限"
+    ],
+    "新的 fd（非负）",
+    "-1，同时设置 errno",
+    "近似于用 open() 搭配 O_CREAT、O_WRONLY、O_TRUNC。"
+  ],
+  "dup": [
+    "int dup(int oldfd);",
+    "复制已有文件描述符，得到新的 fd。",
+    [
+      "oldfd：源 fd"
+    ],
+    "新的 fd（非负）",
+    "-1，同时设置 errno",
+    "两个 fd 引用相同的打开文件描述，并共享文件偏移量。"
+  ],
+  "dup2": [
+    "int dup2(int oldfd, int newfd);",
+    "把 oldfd 复制到指定编号 newfd。",
+    [
+      "oldfd：源 fd",
+      "newfd：目标编号"
+    ],
+    "成功返回 newfd",
+    "-1，同时设置 errno",
+    "常用于重定向标准输入、输出或错误。"
+  ],
+  "dup3": [
+    "int dup3(int oldfd, int newfd, int flags);",
+    "类似 dup2，并能指定 O_CLOEXEC。",
+    [
+      "oldfd：源",
+      "newfd：目标",
+      "flags：例如 O_CLOEXEC"
+    ],
+    "返回 newfd",
+    "-1，同时设置 errno",
+    "不允许 oldfd 与 newfd 相同。"
+  ],
+  "fcntl": [
+    "int fcntl(int fd, int cmd, ...);",
+    "查询或修改文件描述符属性与文件状态标志。",
+    [
+      "fd：目标描述符",
+      "cmd：操作命令",
+      "可选参数：随 cmd 改变"
+    ],
+    "取决于 cmd：可能是 fd、标志位或 0",
+    "通常 -1，同时设置 errno",
+    "必须结合具体 cmd 判断成功返回含义。"
+  ],
+  "ioctl": [
+    "int ioctl(int fd, unsigned long request, ...);",
+    "对文件或设备执行特定控制命令。",
+    [
+      "fd：目标",
+      "request：控制请求",
+      "...：可选参数"
+    ],
+    "取决于 request，通常 0",
+    "-1，同时设置 errno",
+    "不同设备与请求的语义差异很大，查对应设备文档。"
+  ],
+  "stat": [
+    "int stat(const char *path, struct stat *buf);",
+    "根据路径获取文件元数据。",
+    [
+      "path：文件路径",
+      "buf：接收 struct stat 的地址"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "默认跟随符号链接。"
+  ],
+  "fstat": [
+    "int fstat(int fd, struct stat *buf);",
+    "通过文件描述符获取文件元数据。",
+    [
+      "fd：文件描述符",
+      "buf：接收元数据的地址"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "适合已打开的文件。"
+  ],
+  "lstat": [
+    "int lstat(const char *path, struct stat *buf);",
+    "获取路径对象元数据，不跟随最后一个符号链接。",
+    [
+      "path：路径",
+      "buf：接收结果"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "与 stat 在符号链接上的行为不同。"
+  ],
+  "access": [
+    "int access(const char *path, int mode);",
+    "按真实用户身份检查路径可访问性。",
+    [
+      "path：路径",
+      "mode：R_OK/W_OK/X_OK/F_OK"
+    ],
+    "0（当前检查通过）",
+    "-1，同时设置 errno",
+    "先 access 再 open 有竞态风险，不能代替实际打开与错误处理。"
+  ],
+  "chmod": [
+    "int chmod(const char *path, mode_t mode);",
+    "修改文件权限位。",
+    [
+      "path：目标文件",
+      "mode：权限位"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "和 open 的 O_RDONLY/O_RDWR 打开方式不是同一概念。"
+  ],
+  "fchmod": [
+    "int fchmod(int fd, mode_t mode);",
+    "通过已打开的 fd 修改文件权限。",
+    [
+      "fd：文件描述符",
+      "mode：权限位"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "作用于底层文件权限，而非仅当前 fd。"
+  ],
+  "umask": [
+    "mode_t umask(mode_t mask);",
+    "设置创建文件时的权限屏蔽码。",
+    [
+      "mask：新屏蔽码"
+    ],
+    "旧的 umask 值",
+    "此函数不会失败",
+    "新创建文件的实际权限受 umask 影响。"
+  ],
+  "unlink": [
+    "int unlink(const char *pathname);",
+    "删除目录项（一个文件名）。",
+    [
+      "pathname：要删除的路径"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "已打开的文件可能在最后一个引用关闭后才真正释放。"
+  ],
+  "remove": [
+    "int remove(const char *pathname);",
+    "删除文件或空目录。",
+    [
+      "pathname：目标路径"
+    ],
+    "0",
+    "非 0（并设置 errno）",
+    "可用于删除普通文件，与 unlink/ rmdir 用途部分重叠。"
+  ],
+  "rename": [
+    "int rename(const char *oldpath, const char *newpath);",
+    "重命名文件或目录。",
+    [
+      "oldpath：旧路径",
+      "newpath：新路径"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "是否覆盖已有目标需依平台及文件系统规则处理。"
+  ],
+  "mkdir": [
+    "int mkdir(const char *pathname, mode_t mode);",
+    "创建新目录。",
+    [
+      "pathname：目录路径",
+      "mode：权限"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "创建权限会受 umask 影响。"
+  ],
+  "rmdir": [
+    "int rmdir(const char *pathname);",
+    "删除一个空目录。",
+    [
+      "pathname：目标目录"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "目录不为空时通常失败。"
+  ],
+  "symlink": [
+    "int symlink(const char *target, const char *linkpath);",
+    "创建符号链接。",
+    [
+      "target：链接指向的路径",
+      "linkpath：符号链接自身的路径"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "可指向尚不存在的目标。"
+  ],
+  "readlink": [
+    "ssize_t readlink(const char *path, char *buf, size_t bufsiz);",
+    "读取符号链接保存的目标路径文本。",
+    [
+      "path：符号链接",
+      "buf：接收区域",
+      "bufsiz：容量"
+    ],
+    "实际复制的字节数",
+    "-1，同时设置 errno",
+    "不会自动追加 \\0；可能发生截断。"
+  ],
+  "fsync": [
+    "int fsync(int fd);",
+    "请求将文件数据和相关元数据同步到存储。",
+    [
+      "fd：文件描述符"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "与 fflush 刷新 C 库缓冲区不是同一层次。"
+  ],
+  "fdatasync": [
+    "int fdatasync(int fd);",
+    "同步文件数据和必要元数据。",
+    [
+      "fd：文件描述符"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "可能比 fsync 少同步部分非必要元数据。"
+  ],
+  "pread": [
+    "ssize_t pread(int fd, void *buf, size_t count, off_t offset);",
+    "从指定文件偏移读取，不改变共享文件偏移量。",
+    [
+      "fd：文件",
+      "buf：目标内存",
+      "count：上限",
+      "offset：起始偏移"
+    ],
+    "读取字节数，0 通常 EOF",
+    "-1，同时设置 errno",
+    "适合并发访问不同位置。"
+  ],
+  "pwrite": [
+    "ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset);",
+    "从指定偏移写入，不按常规方式改变共享文件偏移量。",
+    [
+      "fd：文件",
+      "buf：数据来源",
+      "count：字节数",
+      "offset：偏移"
+    ],
+    "实际写入字节数",
+    "-1，同时设置 errno",
+    "仍要处理短写；O_APPEND 在 Linux 上可能影响偏移行为。"
+  ],
+  "opendir": [
+    "DIR *opendir(const char *name);",
+    "打开目录以遍历其条目。",
+    [
+      "name：目录路径"
+    ],
+    "DIR* 目录流指针",
+    "NULL，同时设置 errno",
+    "使用 readdir/closedir 配套处理。"
+  ],
+  "readdir": [
+    "struct dirent *readdir(DIR *dirp);",
+    "读取目录的下一条目录项。",
+    [
+      "dirp：目录流"
+    ],
+    "下一条目录项指针",
+    "NULL（结束或错误；用 errno 区分）",
+    "返回的指针通常由库管理，不要直接 free。"
+  ],
+  "closedir": [
+    "int closedir(DIR *dirp);",
+    "关闭目录流。",
+    [
+      "dirp：目录流"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "和 close(fd) 不是同一个接口。"
+  ],
+  "system": [
+    "int system(const char *command);",
+    "交给 shell 执行命令，并等待命令结束。",
+    [
+      "command：shell 命令字符串；NULL 可检查 shell 可用性"
+    ],
+    "命令执行时返回编码的等待状态；命令为 NULL 时返回 shell 是否可用",
+    "创建子进程或获取状态失败时返回 -1",
+    "不要直接将不可信输入拼接成 shell 命令。"
+  ],
+  "execv": [
+    "int execv(const char *path, char *const argv[]);",
+    "以 argv 参数数组执行新的程序映像。",
+    [
+      "path：程序路径",
+      "argv：NULL 结尾参数数组"
+    ],
+    "成功后不返回",
+    "-1，同时设置 errno",
+    "exec 系列替换当前进程，不会自动创建子进程。"
+  ],
+  "execvp": [
+    "int execvp(const char *file, char *const argv[]);",
+    "从 PATH 中查找可执行文件并替换当前程序。",
+    [
+      "file：程序名",
+      "argv：参数数组"
+    ],
+    "成功后不返回",
+    "-1，同时设置 errno",
+    "带 p 的 exec 版本可搜索 PATH。"
+  ],
+  "execle": [
+    "int execle(const char *path, const char *arg, ...);",
+    "传入单独参数和自定义环境变量执行程序。",
+    [
+      "path：路径",
+      "arg/...：参数列表以 NULL 结束",
+      "最后为 envp"
+    ],
+    "成功不返回",
+    "-1，同时设置 errno",
+    "参数列表末尾要有 NULL，之后传 envp。"
+  ],
+  "execl": [
+    "int execl(const char *path, const char *arg, ...);",
+    "以可变参数列表执行指定路径程序。",
+    [
+      "path：程序路径",
+      "arg/...：参数字符串，以 NULL 结束"
+    ],
+    "成功不返回",
+    "-1，同时设置 errno",
+    "列表第一个参数一般作为新程序 argv[0]。"
+  ],
+  "execlp": [
+    "int execlp(const char *file, const char *arg, ...);",
+    "从 PATH 查找程序并以可变参数执行。",
+    [
+      "file：文件名",
+      "arg/...：NULL 结尾的参数列表"
+    ],
+    "成功不返回",
+    "-1，同时设置 errno",
+    "带 l 表示参数列表，带 p 表示搜索 PATH。"
+  ],
+  "getenv": [
+    "char *getenv(const char *name);",
+    "查找当前进程环境变量。",
+    [
+      "name：环境变量名称"
+    ],
+    "指向环境变量值的字符串指针",
+    "NULL（变量不存在）",
+    "返回内存由环境管理，不应直接 free。"
+  ],
+  "setenv": [
+    "int setenv(const char *name, const char *value, int overwrite);",
+    "设置或覆盖环境变量。",
+    [
+      "name：变量名",
+      "value：变量值",
+      "overwrite：是否覆盖已有值"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "仅修改当前进程环境及其后续继承者，不会永久修改 shell 配置。"
+  ],
+  "unsetenv": [
+    "int unsetenv(const char *name);",
+    "从进程环境中删除环境变量。",
+    [
+      "name：变量名"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "已有的 getenv 指针可能因环境变化而失效。"
+  ],
+  "getcwd": [
+    "char *getcwd(char *buf, size_t size);",
+    "获取当前工作目录绝对路径。",
+    [
+      "buf：目标字符数组",
+      "size：容量"
+    ],
+    "返回 buf（或动态分配的地址，若 buf=NULL）",
+    "NULL，同时设置 errno",
+    "buf=NULL 时的分配行为是 GNU/Linux 常见扩展；返回内存可能需 free。"
+  ],
+  "chdir": [
+    "int chdir(const char *path);",
+    "切换当前进程的工作目录。",
+    [
+      "path：目录路径"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "不改变父进程所在目录。"
+  ],
+  "kill": [
+    "int kill(pid_t pid, int sig);",
+    "向进程或进程组发送信号。",
+    [
+      "pid：目标 PID/进程组",
+      "sig：信号编号"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "kill 并不一定让进程终止，取决于具体信号。"
+  ],
+  "raise": [
+    "int raise(int sig);",
+    "向当前进程（调用线程）发送信号。",
+    [
+      "sig：信号"
+    ],
+    "0",
+    "非 0",
+    "适合测试信号处理。"
+  ],
+  "signal": [
+    "void (*signal(int signum, void (*handler)(int)))(int);",
+    "设置信号处理动作，返回之前的处理方式。",
+    [
+      "signum：信号",
+      "handler：信号处理函数 / SIG_IGN / SIG_DFL"
+    ],
+    "先前的信号处理函数指针（或宏值）",
+    "SIG_ERR",
+    "复杂程序更推荐 sigaction。"
+  ],
+  "sigaction": [
+    "int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);",
+    "设置或查询信号处理方式。",
+    [
+      "signum：信号",
+      "act：新处理方式，可 NULL",
+      "oldact：接收原方式，可 NULL"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "信号处理器内部只使用异步信号安全函数。"
+  ],
+  "sigemptyset": [
+    "int sigemptyset(sigset_t *set);",
+    "把信号集合初始化为空集合。",
+    [
+      "set：信号集地址"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "通常先初始化再添加信号。"
+  ],
+  "sigfillset": [
+    "int sigfillset(sigset_t *set);",
+    "将信号集合初始化为包含全部可阻塞信号。",
+    [
+      "set：信号集地址"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "SIGKILL/SIGSTOP 不可阻塞。"
+  ],
+  "sigaddset": [
+    "int sigaddset(sigset_t *set, int signum);",
+    "向信号集中加入一个信号。",
+    [
+      "set：目标集合",
+      "signum：信号号"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "配合 sigprocmask 使用。"
+  ],
+  "sigdelset": [
+    "int sigdelset(sigset_t *set, int signum);",
+    "从信号集中删除指定信号。",
+    [
+      "set：信号集",
+      "signum：信号"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "不改变当前信号屏蔽字，除非再调用设置函数。"
+  ],
+  "sigismember": [
+    "int sigismember(const sigset_t *set, int signum);",
+    "判断某信号是否在集合中。",
+    [
+      "set：集合",
+      "signum：信号"
+    ],
+    "1（存在）或 0（不存在）",
+    "-1，同时设置 errno",
+    "不是普通的“只返回0或-1”函数。"
+  ],
+  "sigprocmask": [
+    "int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);",
+    "检查或修改当前线程的信号屏蔽字。",
+    [
+      "how：SIG_BLOCK/SIG_UNBLOCK/SIG_SETMASK",
+      "set：新集合",
+      "oldset：旧集合"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "多线程程序优先使用 pthread_sigmask。"
+  ],
+  "pause": [
+    "int pause(void);",
+    "挂起线程，直到有信号触发处理或终止。",
+    [
+      "无参数"
+    ],
+    "正常情况下不返回成功值",
+    "-1 且 errno=EINTR（信号处理器返回后）",
+    "用于等待信号，不等于 sleep。"
+  ],
+  "alarm": [
+    "unsigned int alarm(unsigned int seconds);",
+    "安排稍后投递 SIGALRM 信号。",
+    [
+      "seconds：延迟秒数，0 取消"
+    ],
+    "上一个闹钟剩余秒数",
+    "没有独立错误返回值",
+    "进程只有一个此类 alarm 计时器。"
+  ],
+  "nanosleep": [
+    "int nanosleep(const struct timespec *req, struct timespec *rem);",
+    "按纳秒精度请求休眠一段时间。",
+    [
+      "req：请求时长",
+      "rem：中断时保存剩余时长"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "系统调度并不保证精确休眠时长。"
+  ],
+  "getpgid": [
+    "pid_t getpgid(pid_t pid);",
+    "取得进程所在进程组的 PGID。",
+    [
+      "pid：目标 PID，0 表示当前进程"
+    ],
+    "进程组 ID",
+    "-1，同时设置 errno",
+    "PID 与 PGID 是不同概念。"
+  ],
+  "getpgrp": [
+    "pid_t getpgrp(void);",
+    "取得当前进程的进程组 ID。",
+    [
+      "无参数"
+    ],
+    "当前进程 PGID",
+    "不会失败",
+    "与 getpid() 返回的 PID 不一定相同。"
+  ],
+  "setpgid": [
+    "int setpgid(pid_t pid, pid_t pgid);",
+    "设置指定进程所属进程组。",
+    [
+      "pid：目标 PID（0表示当前）",
+      "pgid：目标 PGID（0表示目标 PID）"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "受会话/进程组规则限制。"
+  ],
+  "setsid": [
+    "pid_t setsid(void);",
+    "创建新会话并成为会话首进程。",
+    [
+      "无参数"
+    ],
+    "新会话 ID（也是进程组 ID）",
+    "-1，同时设置 errno",
+    "守护进程初始化常会用到。"
+  ],
+  "strerror": [
+    "char *strerror(int errnum);",
+    "把错误编号转为可读的错误描述字符串。",
+    [
+      "errnum：错误码"
+    ],
+    "错误描述字符串指针",
+    "没有统一 NULL 失败约定",
+    "多线程或跨平台环境注意返回缓冲区特性。"
+  ],
+  "mq_open": [
+    "mqd_t mq_open(const char *name, int oflag, ...);",
+    "打开或创建 POSIX 消息队列。",
+    [
+      "name：以 / 开头的消息队列名",
+      "oflag：O_RDONLY/O_WRONLY/O_CREAT 等",
+      "创建时可选 mode/attr"
+    ],
+    "消息队列描述符 mqd_t",
+    "(mqd_t)-1，同时设置 errno",
+    "创建时可配置单条最大消息大小、队列长度。"
+  ],
+  "mq_close": [
+    "int mq_close(mqd_t mqdes);",
+    "关闭本进程的消息队列描述符。",
+    [
+      "mqdes：消息队列描述符"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "关闭描述符不等于删除队列名称。"
+  ],
+  "mq_unlink": [
+    "int mq_unlink(const char *name);",
+    "删除 POSIX 消息队列名称。",
+    [
+      "name：队列名称"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "已打开的描述符可继续使用，最后关闭后释放。"
+  ],
+  "mq_send": [
+    "int mq_send(mqd_t mqdes, const char *msg_ptr, size_t msg_len, unsigned int msg_prio);",
+    "向消息队列发送一条有优先级的消息。",
+    [
+      "mqdes：队列描述符",
+      "msg_ptr：消息内存",
+      "msg_len：消息字节数",
+      "msg_prio：优先级"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "队列满时阻塞模式通常会等待。"
+  ],
+  "mq_receive": [
+    "ssize_t mq_receive(mqd_t mqdes, char *msg_ptr, size_t msg_len, unsigned int *msg_prio);",
+    "从消息队列接收一条消息。",
+    [
+      "mqdes：队列",
+      "msg_ptr：接收缓冲区",
+      "msg_len：容量",
+      "msg_prio：接收优先级，可 NULL"
+    ],
+    "接收到的消息字节数",
+    "-1，同时设置 errno",
+    "缓冲区大小必须不小于队列所允许的最大消息大小。"
+  ],
+  "mq_getattr": [
+    "int mq_getattr(mqd_t mqdes, struct mq_attr *attr);",
+    "读取消息队列属性。",
+    [
+      "mqdes：队列",
+      "attr：输出属性"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "可查当前消息数 mq_curmsgs。"
+  ],
+  "mq_setattr": [
+    "int mq_setattr(mqd_t mqdes, const struct mq_attr *newattr, struct mq_attr *oldattr);",
+    "修改消息队列的可修改属性。",
+    [
+      "mqdes：队列",
+      "newattr：新属性",
+      "oldattr：旧属性输出，可 NULL"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "通常只能修改 O_NONBLOCK 标志。"
+  ],
+  "mq_notify": [
+    "int mq_notify(mqd_t mqdes, const struct sigevent *notification);",
+    "注册消息队列由空变非空时的通知。",
+    [
+      "mqdes：队列",
+      "notification：通知方式，NULL 可取消"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "通知注册一般是一次性的，需按需要重新注册。"
+  ],
+  "msgget": [
+    "int msgget(key_t key, int msgflg);",
+    "创建或获取 System V 消息队列。",
+    [
+      "key：IPC key",
+      "msgflg：权限及 IPC_CREAT 等"
+    ],
+    "非负队列标识符 msgid",
+    "-1，同时设置 errno",
+    "与 mq_open(POSIX 消息队列) 是不同 API 体系。"
+  ],
+  "msgsnd": [
+    "int msgsnd(int msqid, const void *msgp, size_t msgsz, int msgflg);",
+    "向 System V 消息队列发送消息。",
+    [
+      "msqid：队列ID",
+      "msgp：包含 long mtype 的消息结构体",
+      "msgsz：消息正文长度，不含 mtype",
+      "msgflg：标志"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "msgsz 不包含 mtype 字段大小。"
+  ],
+  "msgrcv": [
+    "ssize_t msgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg);",
+    "按类型从 System V 队列接收消息。",
+    [
+      "msqid：队列ID",
+      "msgp：接收缓冲区",
+      "msgsz：正文容量",
+      "msgtyp：选取类型",
+      "msgflg：标志"
+    ],
+    "收到的消息正文长度",
+    "-1，同时设置 errno",
+    "不会把 mtype 字段大小计入返回的字节数。"
+  ],
+  "msgctl": [
+    "int msgctl(int msqid, int cmd, struct msqid_ds *buf);",
+    "管理或删除 System V 消息队列。",
+    [
+      "msqid：队列ID",
+      "cmd：IPC_STAT/IPC_SET/IPC_RMID",
+      "buf：属性指针"
+    ],
+    "通常 0（视 cmd 而定）",
+    "-1，同时设置 errno",
+    "IPC_RMID 用于删除队列。"
+  ],
+  "ftok": [
+    "key_t ftok(const char *pathname, int proj_id);",
+    "根据文件路径和项目 ID 生成 System V IPC key。",
+    [
+      "pathname：必须存在的路径",
+      "proj_id：项目编号"
+    ],
+    "生成的 key_t 值",
+    "(key_t)-1，同时设置 errno",
+    "相同参数通常得到同一键值，但不保证全局唯一。"
+  ],
+  "shmget": [
+    "int shmget(key_t key, size_t size, int shmflg);",
+    "创建或获取 System V 共享内存段。",
+    [
+      "key：IPC key",
+      "size：需要的大小",
+      "shmflg：权限及 IPC_CREAT"
+    ],
+    "非负共享内存标识 shmid",
+    "-1，同时设置 errno",
+    "不同于 POSIX 的 shm_open。"
+  ],
+  "shmat": [
+    "void *shmat(int shmid, const void *shmaddr, int shmflg);",
+    "将 System V 共享内存段附加到当前进程地址空间。",
+    [
+      "shmid：共享段标识",
+      "shmaddr：指定地址，常用 NULL",
+      "shmflg：标志"
+    ],
+    "附加到内存的起始地址",
+    "(void *)-1，同时设置 errno",
+    "失败判断是 (void *)-1，不是 NULL。"
+  ],
+  "shmdt": [
+    "int shmdt(const void *shmaddr);",
+    "从当前进程地址空间分离 System V 共享内存段。",
+    [
+      "shmaddr：之前 shmat 的返回地址"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "分离不等于删除共享内存段。"
+  ],
+  "shmctl": [
+    "int shmctl(int shmid, int cmd, struct shmid_ds *buf);",
+    "管理 System V 共享内存段，包括删除。",
+    [
+      "shmid：共享段标识",
+      "cmd：IPC_STAT/IPC_SET/IPC_RMID",
+      "buf：元数据"
+    ],
+    "通常返回 0",
+    "-1，同时设置 errno",
+    "IPC_RMID 标记删除，实际释放要看附加情况。"
+  ],
+  "msync": [
+    "int msync(void *addr, size_t length, int flags);",
+    "请求同步内存映射中的修改。",
+    [
+      "addr：映射地址",
+      "length：长度",
+      "flags：MS_SYNC/MS_ASYNC 等"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "主要用于文件映射同步；并不是共享内存通信时每次都必须调用。"
+  ],
+  "mprotect": [
+    "int mprotect(void *addr, size_t len, int prot);",
+    "修改一段映射内存的访问保护属性。",
+    [
+      "addr：地址",
+      "len：长度",
+      "prot：PROT_READ/WRITE/NONE 等"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "地址和长度须满足映射与对齐约束。"
+  ],
+  "pthread_create": [
+    "int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg);",
+    "在当前进程中创建新线程。",
+    [
+      "thread：输出新线程ID",
+      "attr：属性，NULL为默认",
+      "start_routine：线程函数",
+      "arg：线程参数"
+    ],
+    "0",
+    "直接返回非零错误编号（不是 -1）",
+    "pthread 系列多数直接返回错误号，不能用 perror() 直接依赖 errno。"
+  ],
+  "pthread_join": [
+    "int pthread_join(pthread_t thread, void **retval);",
+    "等待可连接线程结束，取得它的返回指针。",
+    [
+      "thread：目标线程",
+      "retval：接收线程返回值的指针地址，可 NULL"
+    ],
+    "0",
+    "非零错误编号",
+    "配合 pthread_exit 或线程函数 return；不能重复 join 同一线程。"
+  ],
+  "pthread_detach": [
+    "int pthread_detach(pthread_t thread);",
+    "将线程设置为分离状态，自动回收线程结束资源。",
+    [
+      "thread：目标线程"
+    ],
+    "0",
+    "非零错误编号",
+    "分离线程不能再 pthread_join。"
+  ],
+  "pthread_exit": [
+    "void pthread_exit(void *retval);",
+    "结束当前线程并提供线程返回值。",
+    [
+      "retval：传给 join 者的指针值"
+    ],
+    "不返回（void）",
+    "无返回值",
+    "与 exit() 不同；不会直接让进程所有线程都退出。"
+  ],
+  "pthread_self": [
+    "pthread_t pthread_self(void);",
+    "取得当前线程标识。",
+    [
+      "无参数"
+    ],
+    "当前线程的 pthread_t 值",
+    "不会失败",
+    "pthread_t 不保证是整数，比较可用 pthread_equal。"
+  ],
+  "pthread_equal": [
+    "int pthread_equal(pthread_t t1, pthread_t t2);",
+    "比较两个 pthread_t 是否表示同一线程。",
+    [
+      "t1、t2：线程标识"
+    ],
+    "相同返回非零；不同返回0",
+    "不会失败",
+    "不要假设 pthread_t 总能按数字比较。"
+  ],
+  "pthread_cancel": [
+    "int pthread_cancel(pthread_t thread);",
+    "向目标线程提出取消请求。",
+    [
+      "thread：目标线程"
+    ],
+    "0",
+    "非零错误编号",
+    "默认延迟取消，发出请求并不保证立即终止。"
+  ],
+  "pthread_testcancel": [
+    "void pthread_testcancel(void);",
+    "主动检查当前线程是否有待处理的取消请求。",
+    [
+      "无参数"
+    ],
+    "无返回值（void）",
+    "无独立错误返回值",
+    "线程可能在此处响应延迟取消。"
+  ],
+  "pthread_setcancelstate": [
+    "int pthread_setcancelstate(int state, int *oldstate);",
+    "允许或禁止当前线程响应取消请求。",
+    [
+      "state：ENABLE/DISABLE",
+      "oldstate：保存旧状态，可 NULL"
+    ],
+    "0",
+    "非零错误编号",
+    "用于保护关键区，需注意恢复原状态。"
+  ],
+  "pthread_setcanceltype": [
+    "int pthread_setcanceltype(int type, int *oldtype);",
+    "设置当前线程响应取消的方式。",
+    [
+      "type：DEFERRED/ASYNCHRONOUS",
+      "oldtype：输出旧方式"
+    ],
+    "0",
+    "非零错误编号",
+    "异步取消可能破坏锁和资源状态，谨慎使用。"
+  ],
+  "pthread_attr_init": [
+    "int pthread_attr_init(pthread_attr_t *attr);",
+    "初始化线程属性对象。",
+    [
+      "attr：属性对象地址"
+    ],
+    "0",
+    "非零错误编号",
+    "使用后可 pthread_attr_destroy。"
+  ],
+  "pthread_attr_destroy": [
+    "int pthread_attr_destroy(pthread_attr_t *attr);",
+    "销毁线程属性对象。",
+    [
+      "attr：已初始化属性对象"
+    ],
+    "0",
+    "非零错误编号",
+    "不会终止使用这些属性创建的线程。"
+  ],
+  "pthread_attr_setdetachstate": [
+    "int pthread_attr_setdetachstate(pthread_attr_t *attr, int detachstate);",
+    "设置之后创建线程的连接/分离状态。",
+    [
+      "attr：属性对象",
+      "detachstate：JOINABLE/DETACHED"
+    ],
+    "0",
+    "非零错误编号",
+    "在 pthread_create 前设置。"
+  ],
+  "pthread_mutex_init": [
+    "int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr);",
+    "初始化互斥锁。",
+    [
+      "mutex：锁地址",
+      "attr：锁属性，NULL为默认"
+    ],
+    "0",
+    "非零错误编号",
+    "适合保护多个线程访问的共享数据。"
+  ],
+  "pthread_mutex_destroy": [
+    "int pthread_mutex_destroy(pthread_mutex_t *mutex);",
+    "销毁不再使用的互斥锁。",
+    [
+      "mutex：锁地址"
+    ],
+    "0",
+    "非零错误编号",
+    "仍被持有或等待时不可安全销毁。"
+  ],
+  "pthread_mutex_lock": [
+    "int pthread_mutex_lock(pthread_mutex_t *mutex);",
+    "获取互斥锁，锁被占用时通常阻塞。",
+    [
+      "mutex：锁地址"
+    ],
+    "0",
+    "非零错误编号",
+    "进入临界区前锁定，结束后解锁。"
+  ],
+  "pthread_mutex_trylock": [
+    "int pthread_mutex_trylock(pthread_mutex_t *mutex);",
+    "尝试立即获取互斥锁。",
+    [
+      "mutex：锁地址"
+    ],
+    "0",
+    "非零错误编号，如 EBUSY",
+    "如果被占用，不会等待。"
+  ],
+  "pthread_mutex_unlock": [
+    "int pthread_mutex_unlock(pthread_mutex_t *mutex);",
+    "释放互斥锁。",
+    [
+      "mutex：锁地址"
+    ],
+    "0",
+    "非零错误编号",
+    "通常必须由持有锁的线程释放。"
+  ],
+  "pthread_rwlock_init": [
+    "int pthread_rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr);",
+    "初始化读写锁。",
+    [
+      "rwlock：锁地址",
+      "attr：属性或 NULL"
+    ],
+    "0",
+    "非零错误编号",
+    "允许多个读者并发，但写入需要排他。"
+  ],
+  "pthread_rwlock_rdlock": [
+    "int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock);",
+    "以共享读方式获取读写锁。",
+    [
+      "rwlock：读写锁"
+    ],
+    "0",
+    "非零错误编号",
+    "能否取得取决于当前写锁和等待者策略。"
+  ],
+  "pthread_rwlock_wrlock": [
+    "int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock);",
+    "以独占写方式获取读写锁。",
+    [
+      "rwlock：读写锁"
+    ],
+    "0",
+    "非零错误编号",
+    "读者和写者都可能造成等待。"
+  ],
+  "pthread_rwlock_unlock": [
+    "int pthread_rwlock_unlock(pthread_rwlock_t *rwlock);",
+    "释放读锁或写锁。",
+    [
+      "rwlock：读写锁"
+    ],
+    "0",
+    "非零错误编号",
+    "必须与已获取的锁配套。"
+  ],
+  "pthread_rwlock_destroy": [
+    "int pthread_rwlock_destroy(pthread_rwlock_t *rwlock);",
+    "销毁不再使用的读写锁。",
+    [
+      "rwlock：读写锁"
+    ],
+    "0",
+    "非零错误编号",
+    "不要销毁仍被使用的锁。"
+  ],
+  "pthread_spin_init": [
+    "int pthread_spin_init(pthread_spinlock_t *lock, int pshared);",
+    "初始化自旋锁。",
+    [
+      "lock：锁地址",
+      "pshared：线程内或进程间共享"
+    ],
+    "0",
+    "非零错误编号",
+    "忙等消耗 CPU，适用于非常短的临界区。"
+  ],
+  "pthread_spin_lock": [
+    "int pthread_spin_lock(pthread_spinlock_t *lock);",
+    "循环尝试获取自旋锁直到成功。",
+    [
+      "lock：锁地址"
+    ],
+    "0",
+    "非零错误编号",
+    "等待时占用 CPU 而不是睡眠。"
+  ],
+  "pthread_spin_trylock": [
+    "int pthread_spin_trylock(pthread_spinlock_t *lock);",
+    "尝试立即取得自旋锁。",
+    [
+      "lock：锁地址"
+    ],
+    "0",
+    "非零错误编号，如 EBUSY",
+    "不阻塞等待。"
+  ],
+  "pthread_spin_unlock": [
+    "int pthread_spin_unlock(pthread_spinlock_t *lock);",
+    "释放自旋锁。",
+    [
+      "lock：锁地址"
+    ],
+    "0",
+    "非零错误编号",
+    "需正确配对。"
+  ],
+  "pthread_spin_destroy": [
+    "int pthread_spin_destroy(pthread_spinlock_t *lock);",
+    "销毁自旋锁。",
+    [
+      "lock：锁地址"
+    ],
+    "0",
+    "非零错误编号",
+    "锁不应处于被使用状态。"
+  ],
+  "pthread_cond_init": [
+    "int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);",
+    "初始化条件变量。",
+    [
+      "cond：条件变量地址",
+      "attr：属性或 NULL"
+    ],
+    "0",
+    "非零错误编号",
+    "条件变量必须配合互斥锁和条件循环使用。"
+  ],
+  "pthread_cond_wait": [
+    "int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);",
+    "原子释放互斥锁并等待条件通知，返回前重新上锁。",
+    [
+      "cond：条件变量",
+      "mutex：已持有的互斥锁"
+    ],
+    "0",
+    "非零错误编号",
+    "应使用 while 检查共享条件，防止虚假唤醒。"
+  ],
+  "pthread_cond_timedwait": [
+    "int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex, const struct timespec *abstime);",
+    "在绝对截止时间之前等待条件通知。",
+    [
+      "cond：变量",
+      "mutex：互斥锁",
+      "abstime：绝对截止时间"
+    ],
+    "0",
+    "非零错误编号，包括 ETIMEDOUT",
+    "截止时间不是“等待多少秒”的相对时间。"
+  ],
+  "pthread_cond_signal": [
+    "int pthread_cond_signal(pthread_cond_t *cond);",
+    "唤醒至少一个等待该条件变量的线程。",
+    [
+      "cond：条件变量"
+    ],
+    "0",
+    "非零错误编号",
+    "并不表示共享条件已经满足，等待者需再次检查。"
+  ],
+  "pthread_cond_broadcast": [
+    "int pthread_cond_broadcast(pthread_cond_t *cond);",
+    "唤醒所有等待该条件变量的线程。",
+    [
+      "cond：条件变量"
+    ],
+    "0",
+    "非零错误编号",
+    "等待者需要重新竞争互斥锁。"
+  ],
+  "pthread_cond_destroy": [
+    "int pthread_cond_destroy(pthread_cond_t *cond);",
+    "销毁条件变量。",
+    [
+      "cond：条件变量"
+    ],
+    "0",
+    "非零错误编号",
+    "不能销毁仍有等待线程的条件变量。"
+  ],
+  "sem_init": [
+    "int sem_init(sem_t *sem, int pshared, unsigned int value);",
+    "初始化无名 POSIX 信号量。",
+    [
+      "sem：信号量地址",
+      "pshared：0为线程共享，非0为进程共享",
+      "value：初值"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "进程共享时 sem 必须放入真正的共享内存。"
+  ],
+  "sem_destroy": [
+    "int sem_destroy(sem_t *sem);",
+    "销毁一个无名信号量。",
+    [
+      "sem：无名信号量地址"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "有名信号量用 sem_close/sem_unlink。"
+  ],
+  "sem_wait": [
+    "int sem_wait(sem_t *sem);",
+    "将信号量值减一，值为0时等待。",
+    [
+      "sem：信号量地址"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "被信号打断时可返回 EINTR。"
+  ],
+  "sem_trywait": [
+    "int sem_trywait(sem_t *sem);",
+    "立即尝试获取信号量。",
+    [
+      "sem：信号量地址"
+    ],
+    "0",
+    "-1，同时设置 errno（如 EAGAIN）",
+    "无可用计数时不阻塞。"
+  ],
+  "sem_timedwait": [
+    "int sem_timedwait(sem_t *sem, const struct timespec *abs_timeout);",
+    "等待信号量直到绝对截止时间。",
+    [
+      "sem：信号量",
+      "abs_timeout：绝对时间"
+    ],
+    "0",
+    "-1，同时设置 errno（如 ETIMEDOUT）",
+    "不是相对持续时间。"
+  ],
+  "sem_post": [
+    "int sem_post(sem_t *sem);",
+    "增加信号量计数，并可唤醒等待者。",
+    [
+      "sem：信号量"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "可用于线程或进程间同步。"
+  ],
+  "sem_getvalue": [
+    "int sem_getvalue(sem_t *sem, int *sval);",
+    "读取当前信号量计数。",
+    [
+      "sem：信号量",
+      "sval：接收数值的 int 地址"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "并发时读取值只是瞬时快照。"
+  ],
+  "sem_open": [
+    "sem_t *sem_open(const char *name, int oflag, ...);",
+    "打开或创建 POSIX 有名信号量。",
+    [
+      "name：以 / 开头的名称",
+      "oflag：标志",
+      "创建时还有 mode/value"
+    ],
+    "有效 sem_t * 指针",
+    "SEM_FAILED，同时设置 errno",
+    "不能用 NULL 判断 sem_open 失败。"
+  ],
+  "sem_close": [
+    "int sem_close(sem_t *sem);",
+    "关闭有名信号量在当前进程中的引用。",
+    [
+      "sem：有名信号量指针"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "不是删除名字；删除使用 sem_unlink。"
+  ],
+  "sem_unlink": [
+    "int sem_unlink(const char *name);",
+    "移除有名信号量在系统中的名称。",
+    [
+      "name：信号量名"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "已有引用可能保持到关闭为止。"
+  ],
+  "socket": [
+    "int socket(int domain, int type, int protocol);",
+    "创建一个网络或本地域套接字。",
+    [
+      "domain：AF_INET/AF_INET6/AF_UNIX 等",
+      "type：SOCK_STREAM/SOCK_DGRAM 等",
+      "protocol：通常为0"
+    ],
+    "非负整数 socket 文件描述符",
+    "-1，同时设置 errno",
+    "TCP 常用 SOCK_STREAM，UDP 常用 SOCK_DGRAM。"
+  ],
+  "bind": [
+    "int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);",
+    "给套接字绑定本地地址和端口。",
+    [
+      "sockfd：套接字",
+      "addr：本地地址结构",
+      "addrlen：结构长度"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "TCP 服务器通常先 bind 再 listen。"
+  ],
+  "listen": [
+    "int listen(int sockfd, int backlog);",
+    "让流式套接字进入监听状态。",
+    [
+      "sockfd：套接字",
+      "backlog：待完成连接队列相关上限"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "listen 不会返回新连接，accept 才会。"
+  ],
+  "accept": [
+    "int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);",
+    "从监听 socket 接受一个客户端连接。",
+    [
+      "sockfd：监听fd",
+      "addr：输出客户端地址，可 NULL",
+      "addrlen：输入容量/输出长度，可 NULL"
+    ],
+    "新连接的 socket fd（非负）",
+    "-1，同时设置 errno",
+    "原来的监听 fd 仍用于接受后续连接。"
+  ],
+  "accept4": [
+    "int accept4(int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags);",
+    "接受连接，可原子设置 SOCK_NONBLOCK/SOCK_CLOEXEC。",
+    [
+      "sockfd：监听fd",
+      "addr/addrlen：客户端地址",
+      "flags：附加标志"
+    ],
+    "新连接 fd",
+    "-1，同时设置 errno",
+    "属于 Linux 扩展接口。"
+  ],
+  "connect": [
+    "int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);",
+    "发起与远端地址的连接。",
+    [
+      "sockfd：套接字",
+      "addr：远端地址",
+      "addrlen：地址长度"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "非阻塞连接可能返回 -1 并设置 EINPROGRESS，随后检查完成状态。"
+  ],
+  "send": [
+    "ssize_t send(int sockfd, const void *buf, size_t len, int flags);",
+    "通过连接的套接字发送数据。",
+    [
+      "sockfd：socket fd",
+      "buf：待发数据",
+      "len：字节数",
+      "flags：标志"
+    ],
+    "实际发送字节数",
+    "-1，同时设置 errno",
+    "TCP 是字节流，单次 send 不保证发完所有字节。"
+  ],
+  "recv": [
+    "ssize_t recv(int sockfd, void *buf, size_t len, int flags);",
+    "从套接字接收数据到内存。",
+    [
+      "sockfd：socket fd",
+      "buf：接收缓冲区",
+      "len：容量",
+      "flags：标志"
+    ],
+    "实际接收字节数；TCP 0 通常表示对端有序关闭",
+    "-1，同时设置 errno",
+    "一次 recv 不保证凑齐一条应用层消息。"
+  ],
+  "sendto": [
+    "ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);",
+    "向指定目标地址发送数据，常用于 UDP。",
+    [
+      "sockfd：socket",
+      "buf/len：数据",
+      "flags：标志",
+      "dest_addr：目标地址",
+      "addrlen：地址长度"
+    ],
+    "实际发送的字节数",
+    "-1，同时设置 errno",
+    "UDP 单个数据报需注意最大数据报大小。"
+  ],
+  "recvfrom": [
+    "ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);",
+    "接收数据，并可取得发送方地址。",
+    [
+      "sockfd：socket",
+      "buf/len：接收空间",
+      "flags：标志",
+      "src_addr/addrlen：输出来源地址"
+    ],
+    "接收的字节数",
+    "-1，同时设置 errno",
+    "UDP 允许长度为0的数据报；不要把返回0都当成断开。"
+  ],
+  "shutdown": [
+    "int shutdown(int sockfd, int how);",
+    "关闭 socket 一个或两个方向的通信。",
+    [
+      "sockfd：套接字",
+      "how：SHUT_RD/SHUT_WR/SHUT_RDWR"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "shutdown 与 close 不同，后者释放本进程持有的 fd。"
+  ],
+  "getsockopt": [
+    "int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen);",
+    "读取套接字选项。",
+    [
+      "sockfd：socket",
+      "level：层级",
+      "optname：选项",
+      "optval：接收内存",
+      "optlen：输入输出长度"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "非阻塞 connect 常通过 SO_ERROR 检查结果。"
+  ],
+  "setsockopt": [
+    "int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);",
+    "设置套接字选项。",
+    [
+      "sockfd：socket",
+      "level：层级",
+      "optname：选项",
+      "optval：选项值地址",
+      "optlen：长度"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "常见 SO_REUSEADDR、SO_KEEPALIVE。"
+  ],
+  "getsockname": [
+    "int getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);",
+    "取得套接字绑定的本地地址。",
+    [
+      "sockfd：套接字",
+      "addr：接收地址",
+      "addrlen：容量/实际长度"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "可查询自动分配的本地端口。"
+  ],
+  "getpeername": [
+    "int getpeername(int sockfd, struct sockaddr *addr, socklen_t *addrlen);",
+    "取得已连接套接字的对端地址。",
+    [
+      "sockfd：套接字",
+      "addr/addrlen：接收对端地址"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "未连接时通常失败。"
+  ],
+  "inet_pton": [
+    "int inet_pton(int af, const char *src, void *dst);",
+    "把 IPv4/IPv6 地址文本转成网络二进制地址。",
+    [
+      "af：AF_INET/AF_INET6",
+      "src：地址文本",
+      "dst：目标结构地址"
+    ],
+    "1（转换成功）；0（不是有效地址文本）",
+    "-1（地址族不支持，设置 errno）",
+    "返回 0 不是系统调用失败，而是输入格式不合法。"
+  ],
+  "inet_ntop": [
+    "const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);",
+    "将二进制 IP 地址转换为文本。",
+    [
+      "af：地址族",
+      "src：源二进制地址",
+      "dst：接收字符数组",
+      "size：容量"
+    ],
+    "返回 dst",
+    "NULL，同时设置 errno",
+    "例如 sizeof(buf) 要足以存 IP 文本和 \\0。"
+  ],
+  "inet_addr": [
+    "in_addr_t inet_addr(const char *cp);",
+    "将 IPv4 点分十进制地址转为网络序数字。",
+    [
+      "cp：IPv4 文本"
+    ],
+    "IPv4 地址的网络字节序表示",
+    "INADDR_NONE（但与广播地址存在歧义）",
+    "旧接口，优先使用 inet_pton。"
+  ],
+  "inet_aton": [
+    "int inet_aton(const char *cp, struct in_addr *inp);",
+    "把 IPv4 文本转换成 struct in_addr。",
+    [
+      "cp：地址文本",
+      "inp：输出 IPv4 地址"
+    ],
+    "1（合法）",
+    "0（输入无效）",
+    "仅适用于 IPv4，不设置统一的 errno 错误模式。"
+  ],
+  "inet_ntoa": [
+    "char *inet_ntoa(struct in_addr in);",
+    "将 IPv4 地址转换为点分十进制文本。",
+    [
+      "in：IPv4 地址"
+    ],
+    "指向转换结果字符串的指针",
+    "无统一错误返回约定",
+    "结果位于静态/线程局部缓冲区，优先使用 inet_ntop。"
+  ],
+  "htons": [
+    "uint16_t htons(uint16_t hostshort);",
+    "将16位整数从主机字节序转为网络字节序。",
+    [
+      "hostshort：主机序16位数"
+    ],
+    "转换后的网络序值",
+    "无错误返回值",
+    "常用于 TCP/UDP 端口。"
+  ],
+  "htonl": [
+    "uint32_t htonl(uint32_t hostlong);",
+    "将32位整数从主机字节序转为网络字节序。",
+    [
+      "hostlong：主机序32位数"
+    ],
+    "网络序32位数",
+    "无错误返回值",
+    "与 htons 处理的位宽不同。"
+  ],
+  "ntohs": [
+    "uint16_t ntohs(uint16_t netshort);",
+    "将16位整数从网络序转为主机序。",
+    [
+      "netshort：网络序16位数"
+    ],
+    "主机序16位数",
+    "无错误返回值",
+    "常用于读取报文端口。"
+  ],
+  "ntohl": [
+    "uint32_t ntohl(uint32_t netlong);",
+    "将32位整数从网络序转为主机序。",
+    [
+      "netlong：网络序32位数"
+    ],
+    "主机序32位数",
+    "无错误返回值",
+    "常用于解码 IPv4 相关数值。"
+  ],
+  "getaddrinfo": [
+    "int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);",
+    "将域名/服务名解析成可连接的地址链表。",
+    [
+      "node：主机名或IP",
+      "service：端口文本或服务名",
+      "hints：筛选条件",
+      "res：输出链表"
+    ],
+    "0",
+    "非零 EAI_* 错误编号（不是 -1/errno 通例）",
+    "错误转中文或英文可用 gai_strerror；结果用 freeaddrinfo 释放。"
+  ],
+  "freeaddrinfo": [
+    "void freeaddrinfo(struct addrinfo *res);",
+    "释放 getaddrinfo 分配的地址链表。",
+    [
+      "res：结果链表"
+    ],
+    "无返回值（void）",
+    "无错误返回值",
+    "不能直接用 free(res) 代替。"
+  ],
+  "gai_strerror": [
+    "const char *gai_strerror(int errcode);",
+    "把 getaddrinfo 错误码转成可读文本。",
+    [
+      "errcode：EAI_* 错误码"
+    ],
+    "错误说明字符串指针",
+    "无常规失败返回值",
+    "getaddrinfo 错误通常不适合直接 perror。"
+  ],
+  "getnameinfo": [
+    "int getnameinfo(const struct sockaddr *addr, socklen_t addrlen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int flags);",
+    "将 socket 地址反向转换为主机名/服务名文本。",
+    [
+      "addr/addrlen：地址",
+      "host/hostlen：输出主机名",
+      "serv/servlen：输出服务名",
+      "flags：选项"
+    ],
+    "0",
+    "非零 EAI_* 错误编号",
+    "NI_NUMERICHOST 可以要求输出数字IP。"
+  ],
+  "socketpair": [
+    "int socketpair(int domain, int type, int protocol, int sv[2]);",
+    "创建一对互相连接的本地套接字。",
+    [
+      "domain：通常 AF_UNIX",
+      "type：SOCK_STREAM 等",
+      "protocol：通常0",
+      "sv：输出两个fd"
+    ],
+    "0；sv[0]/sv[1] 得到fd",
+    "-1，同时设置 errno",
+    "可用于同一机器上的进程间双向通信。"
+  ],
+  "daemon": [
+    "int daemon(int nochdir, int noclose);",
+    "将当前进程放到后台运行（非标准 GNU/BSD 接口）。",
+    [
+      "nochdir：非0则不切到 /",
+      "noclose：非0则不重定向标准流"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "在现代 Linux 中也常采用 systemd 管理守护服务。"
+  ],
+  "openlog": [
+    "void openlog(const char *ident, int option, int facility);",
+    "建立向系统日志输出的标识和选项。",
+    [
+      "ident：日志标识",
+      "option：选项",
+      "facility：日志类别"
+    ],
+    "无返回值（void）",
+    "无错误返回值",
+    "通常与 syslog 搭配使用。"
+  ],
+  "syslog": [
+    "void syslog(int priority, const char *format, ...);",
+    "向系统日志发送格式化消息。",
+    [
+      "priority：日志级别和类别",
+      "format：格式字符串",
+      "...：格式参数"
+    ],
+    "无返回值（void）",
+    "无直接返回码",
+    "适合守护进程记录日志。"
+  ],
+  "closelog": [
+    "void closelog(void);",
+    "关闭进程对系统日志的连接。",
+    [
+      "无参数"
+    ],
+    "无返回值（void）",
+    "无错误返回值",
+    "对应 openlog，但不一定每次 syslog 后都调用。"
+  ],
+  "select": [
+    "int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);",
+    "等待多个 fd 的读/写/异常条件。",
+    [
+      "nfds：最大 fd+1",
+      "readfds/writefds/exceptfds：输入输出集合",
+      "timeout：等待时间或 NULL"
+    ],
+    "就绪 fd 的数量，超时返回0",
+    "-1，同时设置 errno",
+    "调用会修改 fd_set，循环使用前必须重新设置。"
+  ],
+  "pselect": [
+    "int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, const struct timespec *timeout, const sigset_t *sigmask);",
+    "同时等待 fd 状态并以原子方式临时设置信号屏蔽字。",
+    [
+      "nfds：最大fd+1",
+      "集合：输入输出",
+      "timeout：超时",
+      "sigmask：等待时屏蔽字"
+    ],
+    "就绪fd数量，超时0",
+    "-1，同时设置 errno",
+    "帮助避免信号与 select 之间的竞态。"
+  ],
+  "poll": [
+    "int poll(struct pollfd *fds, nfds_t nfds, int timeout);",
+    "等待一组 fd 的事件。",
+    [
+      "fds：输入 fd/事件与输出 revents",
+      "nfds：数组项数",
+      "timeout：毫秒，-1可无限等待"
+    ],
+    "发生事件的 fd 项数，超时0",
+    "-1，同时设置 errno",
+    "与 select 不同，不用按最大 fd 值设 nfds。"
+  ],
+  "ppoll": [
+    "int ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *timeout, const sigset_t *sigmask);",
+    "带信号屏蔽控制与高精度超时的 poll。",
+    [
+      "fds：fd数组",
+      "nfds：数量",
+      "timeout：等待时间",
+      "sigmask：临时信号屏蔽字"
+    ],
+    "有事件项数，超时0",
+    "-1，同时设置 errno",
+    "用于避免信号等待竞态。"
+  ],
+  "epoll_create1": [
+    "int epoll_create1(int flags);",
+    "创建 epoll 实例并得到 fd。",
+    [
+      "flags：0 或 EPOLL_CLOEXEC"
+    ],
+    "新的 epoll fd（非负）",
+    "-1，同时设置 errno",
+    "使用后需要 close(epfd)。"
+  ],
+  "epoll_create": [
+    "int epoll_create(int size);",
+    "创建 epoll 实例（旧接口）。",
+    [
+      "size：必须大于0，现代 Linux 中仅为兼容参数"
+    ],
+    "epoll fd",
+    "-1，同时设置 errno",
+    "优先使用 epoll_create1。"
+  ],
+  "epoll_ctl": [
+    "int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);",
+    "添加、修改或移除 epoll 监视的 fd。",
+    [
+      "epfd：epoll实例",
+      "op：ADD/MOD/DEL",
+      "fd：目标fd",
+      "event：关注事件"
+    ],
+    "0",
+    "-1，同时设置 errno",
+    "EPOLL_CTL_DEL 的 event 在现代 Linux 中通常可 NULL。"
+  ],
+  "epoll_wait": [
+    "int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);",
+    "等待 epoll 已登记对象出现事件。",
+    [
+      "epfd：epoll实例",
+      "events：接收数组",
+      "maxevents：容量",
+      "timeout：毫秒"
+    ],
+    "就绪事件数，超时0",
+    "-1，同时设置 errno",
+    "返回的是本次就绪事件个数，不是读取的数据字节数。"
+  ],
+  "epoll_pwait": [
+    "int epoll_pwait(int epfd, struct epoll_event *events, int maxevents, int timeout, const sigset_t *sigmask);",
+    "可同时指定信号屏蔽字的 epoll 等待。",
+    [
+      "epfd：实例",
+      "events：结果",
+      "maxevents：容量",
+      "timeout：毫秒",
+      "sigmask：等待时信号屏蔽字"
+    ],
+    "就绪事件数，超时0",
+    "-1，同时设置 errno",
+    "与 epoll_wait 区别在于可原子改变信号屏蔽字。"
+  ],
+  "strcmp": [
+    "int strcmp(const char *s1, const char *s2);",
+    "按字节词典顺序比较两个 C 字符串。",
+    [
+      "s1：字符串1",
+      "s2：字符串2"
+    ],
+    "小于0、等于0或大于0，分别表示小于、相等、大于",
+    "无独立错误返回值",
+    "不保证只返回 -1/0/1。"
+  ],
+  "strncmp": [
+    "int strncmp(const char *s1, const char *s2, size_t n);",
+    "最多比较两个字符串前 n 个字节。",
+    [
+      "s1/s2：字符串",
+      "n：比较上限"
+    ],
+    "负数、0或正数",
+    "无错误返回值",
+    "UTF-8 字节比较不等于自然语言排序。"
+  ],
+  "strcat": [
+    "char *strcat(char *dest, const char *src);",
+    "把 src 追加到 dest 原有字符串末尾。",
+    [
+      "dest：目标可写字符串",
+      "src：来源字符串"
+    ],
+    "返回 dest",
+    "无独立错误返回值",
+    "需要提前保证 dest 空间足够。"
+  ],
+  "strncat": [
+    "char *strncat(char *dest, const char *src, size_t n);",
+    "最多追加 src 前 n 个字节，并添加结尾 \\0。",
+    [
+      "dest：目标",
+      "src：来源",
+      "n：追加的最多字节数"
+    ],
+    "返回 dest",
+    "无独立错误返回值",
+    "目标空间还需为结尾 \\0 留出位置。"
+  ],
+  "memmove": [
+    "void *memmove(void *dest, const void *src, size_t n);",
+    "按字节复制内存，允许源和目标区间重叠。",
+    [
+      "dest：目标",
+      "src：来源",
+      "n：字节数"
+    ],
+    "返回 dest",
+    "无独立错误返回值",
+    "源和目标可能重叠时用它替代 memcpy。"
+  ],
+  "memchr": [
+    "void *memchr(const void *s, int c, size_t n);",
+    "在前 n 个字节中寻找给定字节值。",
+    [
+      "s：内存",
+      " c：目标字节",
+      " n：范围"
+    ],
+    "首个匹配字节的地址",
+    "NULL（未找到）",
+    "按指定长度搜索，不依赖 \\0。"
+  ],
+  "strchr": [
+    "char *strchr(const char *s, int c);",
+    "在字符串中寻找首次出现的字符。",
+    [
+      "s：C字符串",
+      "c：字符值"
+    ],
+    "匹配位置的指针",
+    "NULL（未找到）",
+    "可搜索结尾的 \\0。"
+  ],
+  "strstr": [
+    "char *strstr(const char *haystack, const char *needle);",
+    "寻找子字符串第一次出现的位置。",
+    [
+      "haystack：原字符串",
+      "needle：子串"
+    ],
+    "子串起始位置指针",
+    "NULL（未找到）",
+    "空 needle 按约定匹配开头。"
+  ],
+  "strtok": [
+    "char *strtok(char *str, const char *delim);",
+    "按分隔符分割可修改字符串。",
+    [
+      "str：首次源字符串，后续 NULL",
+      "delim：分隔符集合"
+    ],
+    "下一段子串起始地址",
+    "NULL（没有更多字段）",
+    "会修改原字符串，不适合直接用于字符串字面量。"
+  ],
+  "atoi": [
+    "int atoi(const char *nptr);",
+    "把十进制数字文本转换为 int。",
+    [
+      "nptr：数字字符串"
+    ],
+    "转换得到的整数",
+    "无可靠的错误返回约定",
+    "建议用 strtol 做错误检测。"
+  ],
+  "strtol": [
+    "long strtol(const char *nptr, char **endptr, int base);",
+    "将字符串解析为 long 整数。",
+    [
+      "nptr：输入字符串",
+      "endptr：未解析位置，可 NULL",
+      "base：进制"
+    ],
+    "转换后的 long 值",
+    "不能只看返回值；无数字时返回0，范围溢出返回 LONG_MIN/MAX 并置 ERANGE",
+    "要结合 errno 和 endptr 判断是否转换成功。"
+  ],
+  "WIFEXITED": [
+    "int WIFEXITED(int status);",
+    "判断 waitpid 获得的状态是否表示正常退出。",
+    [
+      "status：waitpid 写入的编码状态"
+    ],
+    "真（非0）或假（0）",
+    "不是报错型接口",
+    "是宏，不是函数；真时才能用 WEXITSTATUS。"
+  ],
+  "WEXITSTATUS": [
+    "int WEXITSTATUS(int status);",
+    "提取正常退出的子进程退出码。",
+    [
+      "status：编码状态"
+    ],
+    "正常退出的退出码（常见0–255）",
+    "无单独错误返回值",
+    "先确保 WIFEXITED(status) 为真。"
+  ],
+  "WIFSIGNALED": [
+    "int WIFSIGNALED(int status);",
+    "判断子进程是否被信号终止。",
+    [
+      "status：编码状态"
+    ],
+    "非零为真，0为假",
+    "无单独错误返回值",
+    "返回真时可通过 WTERMSIG 查看信号。"
+  ],
+  "WTERMSIG": [
+    "int WTERMSIG(int status);",
+    "提取使子进程终止的信号编号。",
+    [
+      "status：编码状态"
+    ],
+    "终止信号编号",
+    "无单独错误返回值",
+    "只有 WIFSIGNALED 为真时使用。"
+  ],
+  "FD_ZERO": [
+    "void FD_ZERO(fd_set *set);",
+    "清空 select 用的 fd 集合。",
+    [
+      "set：目标 fd_set"
+    ],
+    "无返回值（宏）",
+    "无错误返回值",
+    "select 重复使用前通常要重新初始化集合。"
+  ],
+  "FD_SET": [
+    "void FD_SET(int fd, fd_set *set);",
+    "把 fd 加入 select 用的集合。",
+    [
+      "fd：目标",
+      "set：fd集合"
+    ],
+    "无返回值（宏）",
+    "无错误返回值",
+    "fd 超出 FD_SETSIZE 可能导致未定义行为。"
+  ],
+  "FD_CLR": [
+    "void FD_CLR(int fd, fd_set *set);",
+    "从 fd 集合中移除指定 fd。",
+    [
+      "fd：目标",
+      "set：集合"
+    ],
+    "无返回值（宏）",
+    "无错误返回值",
+    "操作前确保 set 有效。"
+  ],
+  "FD_ISSET": [
+    "int FD_ISSET(int fd, fd_set *set);",
+    "判断 fd 是否在集合中。",
+    [
+      "fd：目标",
+      "set：集合"
+    ],
+    "非零表示存在；0表示不存在",
+    "无独立错误返回值",
+    "select 返回后用于确定具体哪个 fd 就绪。"
+  ]
+}
