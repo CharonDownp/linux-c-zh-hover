@@ -1,8 +1,8 @@
 {
   "name": "zh-linux-api-hover",
   "displayName": "Linux C 函数中文悬停速查",
-  "description": "Linux/C 中文速查：可编辑简洁/详细中文解释、AI 缓存和永久离线库、可配置 AI 接口和网络重试。",
-  "version": "1.4.0",
+  "description": "Linux/C 中文速查：可按自定义要求定向 AI 修改、编辑简洁/详细解释、AI 缓存和永久离线库、可配置 AI 接口和网络重试。",
+  "version": "1.5.0",
   "publisher": "local-study-tools",
   "engines": {
     "vscode": "^1.75.0"
@@ -28,7 +28,7 @@
       },
       {
         "command": "zhLinuxApiHover.explainFunction",
-        "title": "使用 AI 查询函数（当前光标 / 输入函数名）",
+        "title": "使用 AI 查询函数（可填写补充要求）",
         "category": "Linux C 中文速查"
       },
       {
@@ -43,7 +43,7 @@
       },
       {
         "command": "zhLinuxApiHover.refreshFunction",
-        "title": "使用 AI 重新生成当前函数解释",
+        "title": "使用 AI 重新解释 / 按要求修改当前函数",
         "category": "Linux C 中文速查"
       },
       {

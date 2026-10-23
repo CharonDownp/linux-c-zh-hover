@@ -122,7 +122,7 @@ function markdownFor(name,record) {
   md.appendMarkdown(cmdLink('zhLinuxApiHover.showDetail',name,'📖 查看完整解释'));
   md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.editExplanation',name,'✏️ 编辑解释')}`);
   if (record.kind==='cache') md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.saveOffline',name,'📌 保存到离线库')}`);
-  md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.refreshFunction',name,'🔄 AI 重新解释')}`);
+  md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.refreshFunction',name,'🔄 AI 重新解释 / 提要求')}`);
   md.isTrusted={enabledCommands:['zhLinuxApiHover.showDetail','zhLinuxApiHover.saveOffline','zhLinuxApiHover.refreshFunction','zhLinuxApiHover.editExplanation']};
   return md;
 }
@@ -130,7 +130,7 @@ function missingMarkdown(name) {
   const md=new vscode.MarkdownString();
   md.appendMarkdown(`**${escapeMD(name)}()｜本地未收录**\n\n`);
   md.appendMarkdown('是否属于 Linux/C API 尚未验证；如为自定义函数，请优先看其定义。\n\n');
-  md.appendMarkdown(`${cmdLink('zhLinuxApiHover.explainFunction',name,'🤖 查询中文参数和返回值')}　·　`);
+  md.appendMarkdown(`${cmdLink('zhLinuxApiHover.explainFunction',name,'🤖 AI 查询（可提要求）')}　·　`);
   md.appendMarkdown(`${cmdLink('zhLinuxApiHover.configureApi',name,'⚙️ 配置 AI 接口')}`);
   md.isTrusted={enabledCommands:['zhLinuxApiHover.explainFunction','zhLinuxApiHover.configureApi']};
   return md;
@@ -154,6 +154,39 @@ function showPanel(name,record) {
   const origin=record.kind==='offline'?'自定义离线函数库':record.kind==='cache'?'AI 查询缓存':'内置函数库';
   const brief=briefFor(record);
   panel.webview.html=`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>body{font:15px/1.75 system-ui,sans-serif;color:var(--vscode-editor-foreground);padding:20px;max-width:900px;margin:auto}code,pre{font-family:var(--vscode-editor-font-family),monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:var(--vscode-textCodeBlock-background);border-radius:8px}li{margin:4px 0}small{opacity:.7}h1{font-size:1.5em}</style></head><body><h1>${escHTML(name)}()</h1><small>${escHTML(origin)} · ${escHTML(topicMap[name]||'C/Linux')}</small><pre>${escHTML(proto)}</pre><h2>快速理解</h2><p><strong>作用：</strong>${escHTML(brief.summary)}</p><ul>${brief.params.map(p=>`<li>${escHTML(p)}</li>`).join('')}</ul><p><strong>成功：</strong>${escHTML(brief.success)}</p><p><strong>失败：</strong>${escHTML(brief.failure)}</p><hr><h2>完整解释</h2><p><strong>作用：</strong>${escHTML(summary)}</p><h2>参数</h2><ul>${params.map(p=>`<li>${escHTML(p)}</li>`).join('')}</ul><p><strong>✅ 成功返回：</strong>${escHTML(success)}</p><p><strong>❌ 失败/特殊情况：</strong>${escHTML(failure)}</p><p><strong>注意：</strong>${escHTML(note)}</p><small>依据：${escHTML(record.evidence||record.source||'本地整理')}</small></body></html>`;
+}
+// 手动 AI 查询时提供多行可选要求；自动悬停继续使用默认策略，不弹窗。
+// 关闭窗口/取消不发送请求；空白输入等于沿用默认解释流程。
+function promptAiInstructions(name,existing,force=false) {
+  return new Promise(resolve=>{
+    const panel=vscode.window.createWebviewPanel('zhLinuxAiRequirements',
+      `AI ${force?'重新解释':'解释'} ${name}()`,vscode.ViewColumn.Beside,{enableScripts:true});
+    const nonce=crypto.randomBytes(18).toString('base64');
+    const old=existing?.entry;
+    const preview=old?`<details><summary>查看当前解释（用作定向修改的参考）</summary>
+      <p><b>作用：</b>${escHTML(old[1])}</p><p><b>参数：</b></p><ul>${old[2].map(v=>`<li>${escHTML(v)}</li>`).join('')}</ul>
+      <p><b>成功：</b>${escHTML(old[3])}</p><p><b>失败：</b>${escHTML(old[4])}</p><p><b>备注：</b>${escHTML(old[5])}</p></details>`:'';
+    panel.webview.html=`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
+<style nonce="${nonce}">body{font:14px/1.65 system-ui,sans-serif;color:var(--vscode-editor-foreground);max-width:850px;margin:auto;padding:22px}h1{font-size:1.4em}textarea{width:100%;box-sizing:border-box;min-height:140px;padding:12px;background:var(--vscode-input-background);color:var(--vscode-input-foreground);border:1px solid var(--vscode-input-border,var(--vscode-panel-border));border-radius:6px;font:inherit;resize:vertical}button{padding:9px 16px;border:1px solid var(--vscode-button-border,transparent);border-radius:5px;cursor:pointer;background:var(--vscode-button-background);color:var(--vscode-button-foreground)}button.secondary{background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground)}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}.hint{opacity:.82}details{margin-top:24px;border:1px solid var(--vscode-panel-border);padding:12px;border-radius:6px}li{margin-bottom:4px}#count{font-size:.85em;text-align:right;opacity:.8}</style></head><body>
+<h1>🤖 ${force?'重新解释':'解释'} ${escHTML(name)}()</h1>
+<p class="hint">补充要求是可选的。留空并点击「按默认规则解释」，就与旧版本的 AI 查询方式相同。</p>
+${old?'<p><strong>定向修改：</strong>如果只想修改其中一部分，请明确写出要改什么，其他未指定字段将由插件保留。例如“只缩短 tp 参数的详细解释，其他内容保持不变”。不填写要求时则重新生成完整解释（已有内容仍不会自动覆盖永久离线库）。</p>':'<p>可以填写需要的风格、篇幅和关注点，例如“参数尽量精简，多解释成功/失败返回值”。</p>'}
+<label for="req"><strong>我的补充要求（可不填）</strong></label>
+<textarea id="req" maxlength="2000" placeholder="例如：只修改失败返回值部分，补充常见 errno；其他解释不要变。"></textarea><div id="count">0 / 2000 字</div>
+<div class="actions"><button id="custom">按照我的要求解释</button><button id="default" class="secondary">按默认规则解释</button><button id="cancel" class="secondary">取消</button></div>
+${preview}
+<script nonce="${nonce}">(function(){const api=acquireVsCodeApi(),box=document.getElementById('req'),count=document.getElementById('count');box.addEventListener('input',()=>count.textContent=box.value.length+' / 2000 字');document.getElementById('custom').addEventListener('click',()=>api.postMessage({type:'run',instructions:box.value.trim()}));document.getElementById('default').addEventListener('click',()=>api.postMessage({type:'run',instructions:''}));document.getElementById('cancel').addEventListener('click',()=>api.postMessage({type:'cancel'}));})();</script></body></html>`;
+    let ended=false;
+    const complete=value=>{if(ended)return;ended=true;resolve(value);panel.dispose();};
+    const handler=panel.webview.onDidReceiveMessage(message=>{
+      if(message?.type==='cancel')return complete(undefined);
+      if(message?.type!=='run')return;
+      if(typeof message.instructions!=='string' || message.instructions.length>2000){vscode.window.showWarningMessage('补充要求不得超过 2000 字');return;}
+      complete(message.instructions.trim());
+    });
+    panel.onDidDispose(()=>{handler.dispose();if(!ended){ended=true;resolve(undefined);}});
+  });
 }
 // 所有词条（内置/AI 缓存/自定义离线）均可在编辑页中修改。
 // 编辑结果只保存在用户离线库，不改动扩展内置资料和 AI 原始缓存。
@@ -274,14 +307,18 @@ async function configureApi() {
   else vscode.window.showWarningMessage('AI 配置仍不完整：'+[...result.missing,...(result.storageError?[result.storageError]:[])].join('、'));
 }
 const pending=new Map();
-async function queryAi(name,{force=false,quiet=false,signal}={}) {
+async function queryAi(name,{force=false,quiet=false,signal,instructions=''}={}) {
   if (!validName(name)) throw new Error('请输入有效的函数/宏名称');
+  if (typeof instructions!=='string' || instructions.length>2000)throw new Error('补充要求最多 2000 字');
   const conf=settings();
   const key=cacheKey(name,conf.baseUrl,conf.model);
-  if (!force) {
+  const hasInstructions=Boolean(instructions.trim());
+  // 带补充要求的请求必须绕开已有词条和缓存，否则 AI 根本不会收到要求。
+  if (!force && !hasInstructions) {
     const hit=localRecord(name);
     if (hit) return hit;
   }
+  const previous=hasInstructions ? (app.recent.get(name)||localRecord(name)) : null;
   const state=await apiConfigStatus();
   if (!state.ready) {
     const details=[...state.missing,...(state.storageError?[state.storageError]:[])].join('、');
@@ -292,33 +329,39 @@ async function queryAi(name,{force=false,quiet=false,signal}={}) {
     }
     throw new Error('AI 配置缺失：'+details);
   }
-  if (pending.has(key)) return pending.get(key);
+  const inflightKey=hasInstructions||force ? key+':'+crypto.createHash('sha256').update(instructions+JSON.stringify(previous?.entry||[])+String(force)).digest('hex') : key;
+  if (pending.has(inflightKey)) return pending.get(inflightKey);
   const work=(async()=>{
     const secret=await app.ctx.secrets.get('aiApiKey');
-    const {entry,evidence}=await explain(name,{baseUrl:conf.baseUrl,model:conf.model,timeoutMs:conf.timeoutMs,retryCount:conf.retryCount,proxyUrl:conf.proxyUrl},secret,{signal,onRetry:info=>app.output.appendLine(`${name}(): 第 ${info.attempt} 次请求暂时失败（${info.reason}），正在重试`) });
+    const {entry,brief,evidence}=await explain(name,{baseUrl:conf.baseUrl,model:conf.model,timeoutMs:conf.timeoutMs,retryCount:conf.retryCount,proxyUrl:conf.proxyUrl},secret,
+      {signal,instructions,previous,onRetry:info=>app.output.appendLine(`${name}(): 第 ${info.attempt} 次请求暂时失败（${info.reason}），正在重试`) });
     if (signal?.aborted) throw new Error('已取消');
-    const record={entry,source:`AI:${name}`,evidence,kind:'cache',updatedAt:new Date().toISOString()};
+    const record={entry,...(brief?{brief}:{}),source:`AI:${name}`,evidence,kind:'cache',updatedAt:new Date().toISOString()};
     app.recent.set(name,record);
-    if (conf.cacheEnabled) await app.store.putCache(key,entry,`AI:${name}`,evidence);
+    if (conf.cacheEnabled) await app.store.putCache(key,entry,`AI:${name}`,evidence,brief||null);
     if (conf.saveMode==='auto' && !Object.prototype.hasOwnProperty.call(docs,name) && !app.store.offline[name]) {
-      await app.store.putOffline(name,entry,'AI 自动保存（未人工审核）',evidence);
+      await app.store.putOffline(name,entry,'AI 自动保存（未人工审核）',evidence,brief||null);
       return {...record,kind:'offline'};
     }
     return record;
   })();
-  pending.set(key,work);
-  try{return await work;}finally{pending.delete(key);}
+  pending.set(inflightKey,work);
+  try{return await work;}finally{pending.delete(inflightKey);}
 }
 async function explainCommand(arg, force=false) {
   const name=await chooseName(arg); if (!name) return;
+  // 仅在主动查询时展示要求输入。空要求沿用默认行为；取消则不请求。
+  const previous=app.recent.get(name)||localRecord(name);
+  const instructions=await promptAiInstructions(name,previous,force);
+  if(instructions===undefined)return;
   try {
     let result;
     await vscode.window.withProgress({location:vscode.ProgressLocation.Notification,title:`查询 ${name}() 的中文函数说明`,cancellable:false},async()=>{
-      result=await queryAi(name,{force});
+      result=await queryAi(name,{force,instructions});
     });
     showPanel(name,result);
-    if (result.kind==='cache') {
-      const action=await vscode.window.showInformationMessage(`${name}() 解释已缓存，可以保存为离线词条`, '保存到永久离线库');
+    if (result.kind==='cache' && (force||instructions || !previous)) {
+      const action=await vscode.window.showInformationMessage(`${name}() 的 AI 解释已生成${settings().cacheEnabled?'并缓存':''}。${previous?'原离线词条尚未被覆盖。':'可保存为永久离线词条。'}`, '保存到永久离线库');
       if (action) await saveOffline(name);
     }
   } catch(e) {if (!/AI 配置缺失|已取消/.test(e.message)) {
@@ -332,7 +375,7 @@ async function saveOffline(arg) {
   const name=await chooseName(arg,'输入要从 AI 缓存保存的函数名称'); if (!name) return;
   const cfgAi=settings();
   const hit=cfgAi.baseUrl && cfgAi.model? app.store.cache[cacheKey(name,cfgAi.baseUrl,cfgAi.model)]:null;
-  let rec=hit || app.recent.get(name) || app.store.offline[name];
+  let rec=app.recent.get(name) || hit || app.store.offline[name];
   if (!rec) {
     vscode.window.showWarningMessage(`${name}() 尚无可保存的 AI 缓存，请先使用“AI 查询函数”。`);
     return;
@@ -341,7 +384,7 @@ async function saveOffline(arg) {
     const result=await vscode.window.showWarningMessage(`${name}() 已存在离线说明。要用当前 AI 缓存覆盖自定义离线记录吗？`,{modal:true},'确认覆盖');
     if (result!=='确认覆盖') return;
   }
-  await app.store.putOffline(name,rec.entry,'AI 结果 · 用户确认保存',rec.evidence||'');
+  await app.store.putOffline(name,rec.entry,'AI 结果 · 用户确认保存',rec.evidence||'',rec.brief||null);
   vscode.window.showInformationMessage(`已保存 ${name}() 到永久离线函数与宏库，断网也可查看`);
 }
 async function searchFunctions() {
@@ -482,4 +525,4 @@ async function activate(context) {
   }));
 }
 function deactivate() {}
-module.exports={activate,deactivate, /* testable pure helpers */ markdownFor,missingMarkdown,localRecord,settings,queryAi};
+module.exports={activate,deactivate, /* testable pure helpers */ markdownFor,missingMarkdown,localRecord,settings,queryAi,promptAiInstructions};
