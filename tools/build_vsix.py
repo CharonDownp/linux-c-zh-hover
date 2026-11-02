@@ -33,7 +33,7 @@ xml=f'''<?xml version="1.0" encoding="UTF-8"?>
   <Asset Type="Microsoft.VisualStudio.Code.License" Path="extension/LICENSE" Addressable="true" />
  </Assets>
 </PackageManifest>'''
-files=['extension.js','builtin-docs.js','symbol-docs.js','additional-docs.json','categories.json','package.json','README.md','LICENSE','lib/storage.js','lib/symbols.js','lib/symbol-ai.js','lib/ai.js','lib/brief.js','lib/transport.js','lib/revision.js','CHANGELOG.md']
+files=['extension.js','builtin-docs.js','symbol-docs.js','additional-docs.json','categories.json','package.json','README.md','LICENSE','lib/storage.js','lib/symbols.js','lib/symbol-ai.js','lib/ai.js','lib/brief.js','lib/transport.js','lib/revision.js','lib/rich-render.js','CHANGELOG.md']
 with ZipFile(out,'w',ZIP_DEFLATED) as z:
     z.writestr('[Content_Types].xml',content)
     z.writestr('extension.vsixmanifest',xml)

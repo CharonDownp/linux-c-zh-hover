@@ -5,6 +5,7 @@ const {docs,topicMap}=require('./builtin-docs');
 const {Storage, validName, safeRecord, validateEntry, validateBrief}=require('./lib/storage');
 const {explain,cacheKey,endpointFrom,probeApiEndpoint,callCompatibleApi}=require('./lib/ai');
 const {briefOf}=require('./lib/brief');
+const {richMarkdown,richHtml}=require('./lib/rich-render');
 const {symbols,names,inspectSymbol,codeSnippet,variableRecord,isKeyword}=require('./lib/symbols');
 const {explainSymbol}=require('./lib/symbol-ai');
 
@@ -122,19 +123,19 @@ function markdownFor(name,record,target=null) {
   const origin=record.kind==='offline'?'⭐ 用户离线库':record.kind==='cache'?'🤖 AI 缓存':'📚 内置离线库';
   md.appendMarkdown(`*${origin}${category?' · '+escapeMD(category):''}*\n\n`);
   md.appendCodeblock(proto,'c');
-  md.appendMarkdown(`\n**作用：** ${escapeMD(brief.summary)}\n\n`);
+  md.appendMarkdown(`\n**作用：** ${richMarkdown(brief.summary)}\n\n`);
   md.appendMarkdown(`**${labels.parts}：**\n\n`);
-  for (const p of brief.params) md.appendMarkdown(`- ${escapeMD(p)}\n`);
-  md.appendMarkdown(`\n**${labels.success}：** ${escapeMD(brief.success)}\n\n`);
-  md.appendMarkdown(`**${labels.failure}：** ${escapeMD(brief.failure)}\n\n`);
+  for (const p of brief.params) md.appendMarkdown(`- ${richMarkdown(p)}\n`);
+  md.appendMarkdown(`\n**${labels.success}：** ${richMarkdown(brief.success)}\n\n`);
+  md.appendMarkdown(`**${labels.failure}：** ${richMarkdown(brief.failure)}\n\n`);
   if (settings().detailMode==='full') {
     md.appendMarkdown(`---\n\n**📖 完整解释**\n\n`);
-    md.appendMarkdown(`**作用：** ${escapeMD(summary)}\n\n`);
+    md.appendMarkdown(`**作用：** ${richMarkdown(summary)}\n\n`);
     md.appendMarkdown(`**${labels.parts}：**\n\n`);
-    for (const p of params) md.appendMarkdown(`- ${escapeMD(p)}\n`);
-    md.appendMarkdown(`\n**${labels.successFull}：** ${escapeMD(success)}\n\n`);
-    md.appendMarkdown(`**${labels.failureFull}：** ${escapeMD(failure)}\n\n`);
-    md.appendMarkdown(`**提醒：** ${escapeMD(note)}\n\n`);
+    for (const p of params) md.appendMarkdown(`- ${richMarkdown(p)}\n`);
+    md.appendMarkdown(`\n**${labels.successFull}：** ${richMarkdown(success)}\n\n`);
+    md.appendMarkdown(`**${labels.failureFull}：** ${richMarkdown(failure)}\n\n`);
+    md.appendMarkdown(`**提醒：** ${richMarkdown(note)}\n\n`);
     if (record.evidence) md.appendMarkdown(`*依据：${escapeMD(record.evidence)}*\n\n`);
   }
   md.appendMarkdown(cmdLink('zhLinuxApiHover.showDetail',target||name,'📖 查看完整解释'));
@@ -183,7 +184,7 @@ function showPanel(name,record) {
   const panel=vscode.window.createWebviewPanel('zhLinuxApiHoverDetail',`${symbolTitle(name,record.symbolKind)} 中文说明`,vscode.ViewColumn.Beside,{enableScripts:false});
   const origin=record.kind==='offline'?'自定义离线函数库':record.kind==='cache'?'AI 查询缓存':'内置函数库';
   const brief=briefFor(record),labels=meaningLabels(record);
-  panel.webview.html=`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>body{font:15px/1.75 system-ui,sans-serif;color:var(--vscode-editor-foreground);padding:20px;max-width:900px;margin:auto}code,pre{font-family:var(--vscode-editor-font-family),monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:var(--vscode-textCodeBlock-background);border-radius:8px}li{margin:4px 0}small{opacity:.7}h1{font-size:1.5em}</style></head><body><h1>${escHTML(symbolTitle(name,record.symbolKind))}</h1><small>${escHTML(origin)} · ${escHTML(topicMap[name]||'C/Linux')}</small><pre>${escHTML(proto)}</pre><h2>快速理解</h2><p><strong>作用：</strong>${escHTML(brief.summary)}</p><ul>${brief.params.map(p=>`<li>${escHTML(p)}</li>`).join('')}</ul><p><strong>${escHTML(labels.success)}：</strong>${escHTML(brief.success)}</p><p><strong>${escHTML(labels.failure)}：</strong>${escHTML(brief.failure)}</p><hr><h2>完整解释</h2><p><strong>作用：</strong>${escHTML(summary)}</p><h2>${escHTML(labels.parts)}</h2><ul>${params.map(p=>`<li>${escHTML(p)}</li>`).join('')}</ul><p><strong>${escHTML(labels.successFull)}：</strong>${escHTML(success)}</p><p><strong>${escHTML(labels.failureFull)}：</strong>${escHTML(failure)}</p><p><strong>注意：</strong>${escHTML(note)}</p><small>依据：${escHTML(record.evidence||record.source||'本地整理')}</small></body></html>`;
+  panel.webview.html=`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>body{font:15px/1.75 system-ui,sans-serif;color:var(--vscode-editor-foreground);padding:20px;max-width:900px;margin:auto}code,pre{font-family:var(--vscode-editor-font-family),monospace}pre{white-space:pre;overflow-x:auto;tab-size:4;padding:12px;background:var(--vscode-textCodeBlock-background);border-radius:8px}.rich-prose{white-space:pre-wrap;overflow-wrap:anywhere}.c-snippet{max-width:100%}.field{margin:12px 0}li{margin:4px 0}small{opacity:.7}h1{font-size:1.5em}</style></head><body><h1>${escHTML(symbolTitle(name,record.symbolKind))}</h1><small>${escHTML(origin)} · ${escHTML(topicMap[name]||'C/Linux')}</small><pre>${escHTML(proto)}</pre><h2>快速理解</h2><div class="field"><strong>作用：</strong>${richHtml(brief.summary)}</div><ul>${brief.params.map(p=>`<li>${richHtml(p)}</li>`).join('')}</ul><div class="field"><strong>${escHTML(labels.success)}：</strong>${richHtml(brief.success)}</div><div class="field"><strong>${escHTML(labels.failure)}：</strong>${richHtml(brief.failure)}</div><hr><h2>完整解释</h2><div class="field"><strong>作用：</strong>${richHtml(summary)}</div><h2>${escHTML(labels.parts)}</h2><ul>${params.map(p=>`<li>${richHtml(p)}</li>`).join('')}</ul><div class="field"><strong>${escHTML(labels.successFull)}：</strong>${richHtml(success)}</div><div class="field"><strong>${escHTML(labels.failureFull)}：</strong>${richHtml(failure)}</div><div class="field"><strong>注意：</strong>${richHtml(note)}</div><small>依据：${escHTML(record.evidence||record.source||'本地整理')}</small></body></html>`;
 }
 // 手动 AI 查询时提供多行可选要求；自动悬停继续使用默认策略，不弹窗。
 // 关闭窗口/取消不发送请求；空白输入等于沿用默认解释流程。
@@ -194,11 +195,11 @@ function promptAiInstructions(name,existing,force=false,symbolKind='function') {
     const nonce=crypto.randomBytes(18).toString('base64');
     const old=existing?.entry;
     const preview=old?`<details><summary>查看当前解释（用作定向修改的参考）</summary>
-      <p><b>作用：</b>${escHTML(old[1])}</p><p><b>参数：</b></p><ul>${old[2].map(v=>`<li>${escHTML(v)}</li>`).join('')}</ul>
-      <p><b>成功：</b>${escHTML(old[3])}</p><p><b>失败：</b>${escHTML(old[4])}</p><p><b>备注：</b>${escHTML(old[5])}</p></details>`:'';
+      <div class="field"><b>作用：</b>${richHtml(old[1])}</div><div class="field"><b>参数：</b></div><ul>${old[2].map(v=>`<li>${richHtml(v)}</li>`).join('')}</ul>
+      <div class="field"><b>成功：</b>${richHtml(old[3])}</div><div class="field"><b>失败：</b>${richHtml(old[4])}</div><div class="field"><b>备注：</b>${richHtml(old[5])}</div></details>`:'';
     panel.webview.html=`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
-<style nonce="${nonce}">body{font:14px/1.65 system-ui,sans-serif;color:var(--vscode-editor-foreground);max-width:850px;margin:auto;padding:22px}h1{font-size:1.4em}textarea{width:100%;box-sizing:border-box;min-height:140px;padding:12px;background:var(--vscode-input-background);color:var(--vscode-input-foreground);border:1px solid var(--vscode-input-border,var(--vscode-panel-border));border-radius:6px;font:inherit;resize:vertical}button{padding:9px 16px;border:1px solid var(--vscode-button-border,transparent);border-radius:5px;cursor:pointer;background:var(--vscode-button-background);color:var(--vscode-button-foreground)}button.secondary{background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground)}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}.hint{opacity:.82}details{margin-top:24px;border:1px solid var(--vscode-panel-border);padding:12px;border-radius:6px}li{margin-bottom:4px}#count{font-size:.85em;text-align:right;opacity:.8}</style></head><body>
+<style nonce="${nonce}">body{font:14px/1.65 system-ui,sans-serif;color:var(--vscode-editor-foreground);max-width:850px;margin:auto;padding:22px}h1{font-size:1.4em}textarea{width:100%;box-sizing:border-box;min-height:140px;padding:12px;background:var(--vscode-input-background);color:var(--vscode-input-foreground);border:1px solid var(--vscode-input-border,var(--vscode-panel-border));border-radius:6px;font:inherit;resize:vertical}button{padding:9px 16px;border:1px solid var(--vscode-button-border,transparent);border-radius:5px;cursor:pointer;background:var(--vscode-button-background);color:var(--vscode-button-foreground)}button.secondary{background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground)}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}.hint{opacity:.82}.rich-prose{white-space:pre-wrap;overflow-wrap:anywhere}.c-snippet{white-space:pre;overflow-x:auto;padding:10px;background:var(--vscode-textCodeBlock-background)}.field{margin:10px 0}details{margin-top:24px;border:1px solid var(--vscode-panel-border);padding:12px;border-radius:6px}li{margin-bottom:4px}#count{font-size:.85em;text-align:right;opacity:.8}</style></head><body>
 <h1>🤖 ${force?'重新解释':'解释'} ${escHTML(symbolTitle(name,symbolKind))}</h1>
 <p class="hint">补充要求是可选的。留空并点击「按默认规则解释」，就与旧版本的 AI 查询方式相同。</p>
 ${old?'<p><strong>定向修改：</strong>如果只想修改其中一部分，请明确写出要改什么，其他未指定字段将由插件保留。例如“只缩短 tp 参数的详细解释，其他内容保持不变”。不填写要求时则重新生成完整解释（已有内容仍不会自动覆盖永久离线库）。</p>':'<p>可以填写需要的风格、篇幅和关注点，例如“参数尽量精简，多解释成功/失败返回值”。</p>'}

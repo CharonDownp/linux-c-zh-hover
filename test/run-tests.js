@@ -359,7 +359,7 @@ test('HTTP 代理转发 + 连接测试；不携带 token 到 GET 探测',async()
 });
 test('v1.4 编辑内置说明：简洁版与详细版可分别修改，保存后悬停立即生效',async()=>{
   const pkg=require('../package.json');
-  assert.equal(pkg.version,'1.6.0');
+  assert.equal(pkg.version,'1.6.1');
   assert.equal(typeof commands['zhLinuxApiHover.editExplanation'],'function');
   const name='fork';
   const doc={getWordRangeAtPosition:()=>({end:{line:0,character:4}}),getText:()=>name,lineAt:()=>({text:'fork();'})};
@@ -406,7 +406,7 @@ test('编辑合法性校验：不允许空返回值、过量参数或恶意 HTML
   assert.doesNotMatch(hover.contents.value,/我自己写的简洁版/);
 });
 test('v1.5 默认按钮：留空仍使用旧版查询行为，出现可选要求弹窗',async()=>{
-  assert.equal(require('../package.json').version,'1.6.0');
+  assert.equal(require('../package.json').version,'1.6.1');
   assert.equal(typeof commands['zhLinuxApiHover.refreshFunction'],'function');
   assert.equal(typeof extension.promptAiInstructions,'function');
   const num=promptLog.length;
@@ -640,6 +640,31 @@ test('局部变量悬停链接可打开完整说明与编辑页，而不是提�
     assert.match(lastPanel.webview.html,/编辑 localAddr 中文解释/);
     assert.match(lastPanel.webview.html,/典型用途/);
   }finally{vscode.window.activeTextEditor=oldEditor;}
+});
+test('多行 C 代码原样保留换行缩进并防止 HTML 注入',async()=>{
+  const {segments,richMarkdown,richHtml}=require('../lib/rich-render');
+  const c=['说明：','','#include <sys/socket.h>','int main(void)','{','    // socket 注释','    if (bind(fd,','             (const struct sockaddr *)&addr,','             sizeof(addr)) == -1) {','        perror("bind");','    }','}','','解释结束。'].join('\n');
+  assert.equal(segments(c).filter(x=>x.type==='code').length,1);
+  assert.ok(richMarkdown(c).includes('             (const struct sockaddr *)&addr,'));
+  assert.ok(richMarkdown(c).includes('##')===false);
+  assert.match(richHtml(c),/<pre class="c-snippet"><code>#include &lt;sys\/socket\.h&gt;/);
+  assert.equal(richHtml('<script>alert(1)</script>').includes('<script>'),false);
+});
+test('旧离线说明中的 C 示例无需迁移，悬停与详细页正确保留缩进',async()=>{
+  const old=settingsObj['hover.detailMode'];
+  const entry=['int example(void);','socket bind',[],'成功','失败','#include <sys/socket.h>\n\nint main(void) {\n    return 0;\n}'];
+  const disk=new Storage(ctx());await disk.init();await disk.putOffline('multiline_api',entry,'用户离线词条','旧格式');
+  await commands['zhLinuxApiHover.reloadOffline']();
+  const doc={getWordRangeAtPosition:()=>({end:{line:0,character:13}}),getText:()=> 'multiline_api',lineAt:()=>({text:'multiline_api();'})};
+  try{
+    settingsObj['hover.detailMode']='full';
+    const hover=await hoverFn(doc,{line:0,character:1},{});
+    assert.match(hover.contents.value,/##/);
+    assert.ok(hover.contents.value.includes('    return 0;'));
+    await commands['zhLinuxApiHover.showDetail']('multiline_api');
+    assert.ok(lastPanel.webview.html.includes('white-space:pre;overflow-x:auto'));
+    assert.ok(lastPanel.webview.html.includes('<pre class="c-snippet"><code>#include &lt;sys/socket.h&gt;'));
+  } finally {settingsObj['hover.detailMode']=old;}
 });
 (async()=>{
   let errors=0;
