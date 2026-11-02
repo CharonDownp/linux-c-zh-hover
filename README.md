@@ -25,10 +25,10 @@
 也可以通过终端安装：
 
 ~~~bash
-code --install-extension /path/to/zh-linux-api-hover-<version>.vsix --force
+code --install-extension "/path/to/downloaded-file.vsix" --force
 ~~~
 
-将 `<version>` 替换为下载文件中的实际版本号。
+将命令中的路径替换为实际下载的 `.vsix` 文件路径。
 
 ## 使用示例
 
