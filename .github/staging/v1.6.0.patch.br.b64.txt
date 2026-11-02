@@ -1,1 +1,1 @@
-Validated source update bundle for v1.6.0. Ready for one-time sync and release.
+Trigger v1.6.0 synchronization with restored baseline lib files and verified test/build source.
