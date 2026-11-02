@@ -1,1 +1,0 @@
-Trigger v1.6.0 synchronization with restored baseline lib files and verified test/build source.

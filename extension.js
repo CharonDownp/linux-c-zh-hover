@@ -3,8 +3,10 @@ const vscode=require('vscode');
 const crypto=require('node:crypto');
 const {docs,topicMap}=require('./builtin-docs');
 const {Storage, validName, safeRecord, validateEntry, validateBrief}=require('./lib/storage');
-const {explain,cacheKey,endpointFrom,probeApiEndpoint}=require('./lib/ai');
+const {explain,cacheKey,endpointFrom,probeApiEndpoint,callCompatibleApi}=require('./lib/ai');
 const {briefOf}=require('./lib/brief');
+const {symbols,names,inspectSymbol,codeSnippet,variableRecord,isKeyword}=require('./lib/symbols');
+const {explainSymbol}=require('./lib/symbol-ai');
 
 let app;
 function cfg() {return vscode.workspace.getConfiguration('zhLinuxApiHover');}
@@ -83,56 +85,74 @@ function cmdLink(command, name, label) {
   const uri=`command:${command}?${encodeURIComponent(JSON.stringify([name]))}`;
   return `[${label}](${uri})`;
 }
-function localRecord(name) {
+function entryCacheKey(name,conf,kind='function',context='') {
+  const base=cacheKey(name,conf.baseUrl,conf.model);
+  // 函数沿用旧缓存键；普通变量依赖局部代码，不能在不同项目复用同名变量解释。
+  if(kind==='function') return base;
+  const contextHash=kind==='variable'?crypto.createHash('sha256').update(context).digest('hex'):'';
+  return crypto.createHash('sha256').update(JSON.stringify({name,base,kind,contextHash})).digest('hex');
+}
+function localRecord(name,{kind=null,context=''}={}) {
   if (!validName(name)) return null;
-  if (app?.store.offline[name]) return {...app.store.offline[name],kind:'offline'};
-  if (Object.prototype.hasOwnProperty.call(docs,name)) return {entry:docs[name],kind:'built-in',source:'内置离线库'};
-  const set=settings();
-  if (set.cacheEnabled && set.baseUrl && set.model) {
-    const key=cacheKey(name,set.baseUrl,set.model), hit=app.store.cache[key];
-    if (hit) return {...hit,kind:'cache'};
+  if (app?.store.offline[name]) return {...app.store.offline[name],symbolKind:app.store.offline[name].symbolKind||symbols[name]?.symbolKind||'function',kind:'offline'};
+  if (kind && kind!=='function' && symbols[name]) return {...symbols[name],kind:'built-in'};
+  if (Object.prototype.hasOwnProperty.call(docs,name)) return {entry:docs[name],symbolKind:'function',kind:'built-in',source:'内置离线库'};
+  if (symbols[name]) return {...symbols[name],kind:'built-in'};
+  const conf=settings(), k=kind||'function';
+  if (conf.cacheEnabled && conf.baseUrl && conf.model) {
+    const key=entryCacheKey(name,conf,k,context), hit=app.store.cache[key];
+    if (hit) return {...hit,symbolKind:hit.symbolKind||k,kind:'cache'};
   }
   return null;
 }
+function symbolTitle(name,kind) {return kind==='function'?`${name}()` : name;}
+function isFunction(record){return !record?.symbolKind||record.symbolKind==='function';}
+function meaningLabels(record) {
+  return isFunction(record)?{parts:'参数',success:'✅ 成功',failure:'❌ 失败/特殊',successFull:'✅ 成功返回',failureFull:'❌ 失败/特殊',proto:'函数原型'}:
+    {parts:record.symbolKind==='struct'||record.symbolKind==='union'?'主要成员':'组成/说明',success:'💡 典型用途',failure:'⚠️ 注意事项',successFull:'💡 典型用途',failureFull:'⚠️ 注意事项',proto:'定义/声明'};
+}
 function briefFor(record) {return record.brief || briefOf(record.entry);}
-function markdownFor(name,record) {
+function markdownFor(name,record,target=null) {
   const [proto,summary,params,success,failure,note]=record.entry;
   const brief=briefFor(record);
   const md=new vscode.MarkdownString();
-  md.appendMarkdown(`### ${escapeMD(name)}()｜中文速查\n\n`);
+  const labels=meaningLabels(record);
+  md.appendMarkdown(`### ${escapeMD(symbolTitle(name,record.symbolKind))}｜${isFunction(record)?'函数':names[record.symbolKind]||'标识符'}中文速查\n\n`);
   const category=topicMap[name];
   const origin=record.kind==='offline'?'⭐ 用户离线库':record.kind==='cache'?'🤖 AI 缓存':'📚 内置离线库';
   md.appendMarkdown(`*${origin}${category?' · '+escapeMD(category):''}*\n\n`);
   md.appendCodeblock(proto,'c');
   md.appendMarkdown(`\n**作用：** ${escapeMD(brief.summary)}\n\n`);
-  md.appendMarkdown(`**参数：**\n\n`);
+  md.appendMarkdown(`**${labels.parts}：**\n\n`);
   for (const p of brief.params) md.appendMarkdown(`- ${escapeMD(p)}\n`);
-  md.appendMarkdown(`\n**✅ 成功：** ${escapeMD(brief.success)}\n\n`);
-  md.appendMarkdown(`**❌ 失败/特殊：** ${escapeMD(brief.failure)}\n\n`);
+  md.appendMarkdown(`\n**${labels.success}：** ${escapeMD(brief.success)}\n\n`);
+  md.appendMarkdown(`**${labels.failure}：** ${escapeMD(brief.failure)}\n\n`);
   if (settings().detailMode==='full') {
     md.appendMarkdown(`---\n\n**📖 完整解释**\n\n`);
     md.appendMarkdown(`**作用：** ${escapeMD(summary)}\n\n`);
-    md.appendMarkdown('**参数：**\n\n');
+    md.appendMarkdown(`**${labels.parts}：**\n\n`);
     for (const p of params) md.appendMarkdown(`- ${escapeMD(p)}\n`);
-    md.appendMarkdown(`\n**✅ 成功返回：** ${escapeMD(success)}\n\n`);
-    md.appendMarkdown(`**❌ 失败/特殊：** ${escapeMD(failure)}\n\n`);
+    md.appendMarkdown(`\n**${labels.successFull}：** ${escapeMD(success)}\n\n`);
+    md.appendMarkdown(`**${labels.failureFull}：** ${escapeMD(failure)}\n\n`);
     md.appendMarkdown(`**提醒：** ${escapeMD(note)}\n\n`);
     if (record.evidence) md.appendMarkdown(`*依据：${escapeMD(record.evidence)}*\n\n`);
   }
-  md.appendMarkdown(cmdLink('zhLinuxApiHover.showDetail',name,'📖 查看完整解释'));
-  md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.editExplanation',name,'✏️ 编辑解释')}`);
-  if (record.kind==='cache') md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.saveOffline',name,'📌 保存到离线库')}`);
-  md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.refreshFunction',name,'🔄 AI 重新解释 / 提要求')}`);
-  md.isTrusted={enabledCommands:['zhLinuxApiHover.showDetail','zhLinuxApiHover.saveOffline','zhLinuxApiHover.refreshFunction','zhLinuxApiHover.editExplanation']};
+  md.appendMarkdown(cmdLink('zhLinuxApiHover.showDetail',target||name,'📖 查看完整解释'));
+  md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.editExplanation',target||name,'✏️ 编辑解释')}`);
+  if (record.kind==='context') md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.explainIdentifier',target||{name,kind:'variable'},'🤖 结合代码让 AI 解释')}`);
+  if (record.kind==='cache') md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.saveOffline',target||name,'📌 保存到离线库')}`);
+  md.appendMarkdown(`　·　${cmdLink('zhLinuxApiHover.refreshFunction',target||{name,kind:record.symbolKind||'function'},'🔄 AI 重新解释 / 提要求')}`);
+  md.isTrusted={enabledCommands:['zhLinuxApiHover.showDetail','zhLinuxApiHover.saveOffline','zhLinuxApiHover.refreshFunction','zhLinuxApiHover.editExplanation','zhLinuxApiHover.explainIdentifier']};
   return md;
 }
-function missingMarkdown(name) {
+function missingMarkdown(name,kind='function',target=null) {
   const md=new vscode.MarkdownString();
-  md.appendMarkdown(`**${escapeMD(name)}()｜本地未收录**\n\n`);
-  md.appendMarkdown('是否属于 Linux/C API 尚未验证；如为自定义函数，请优先看其定义。\n\n');
-  md.appendMarkdown(`${cmdLink('zhLinuxApiHover.explainFunction',name,'🤖 AI 查询（可提要求）')}　·　`);
+  const fn=kind==='function';
+  md.appendMarkdown(`**${escapeMD(symbolTitle(name,kind))}｜本地未收录（${escapeMD(names[kind]||'标识符')}）**\n\n`);
+  md.appendMarkdown(fn?'是否属于 Linux/C API 尚未验证；如为自定义函数，请优先看其定义。\n\n':'该名称的具体含义需结合声明或上下文确认。查询当前变量时，代码不会未经允许自动发送给 AI。\n\n');
+  md.appendMarkdown(`${cmdLink(fn?'zhLinuxApiHover.explainFunction':'zhLinuxApiHover.explainIdentifier',fn?name:(target||{name,kind}),'🤖 AI 查询（可提要求）')}　·　`);
   md.appendMarkdown(`${cmdLink('zhLinuxApiHover.configureApi',name,'⚙️ 配置 AI 接口')}`);
-  md.isTrusted={enabledCommands:['zhLinuxApiHover.explainFunction','zhLinuxApiHover.configureApi']};
+  md.isTrusted={enabledCommands:['zhLinuxApiHover.explainFunction','zhLinuxApiHover.explainIdentifier','zhLinuxApiHover.configureApi']};
   return md;
 }
 function nameAtCursor() {
@@ -142,25 +162,35 @@ function nameAtCursor() {
   const range=editor.document.getWordRangeAtPosition(pos,/[A-Za-z_]\w*/);
   return range?editor.document.getText(range):'';
 }
-async function chooseName(name,placeholder='输入 C/Linux 函数或宏名称') {
+async function chooseName(name,placeholder='输入 C/C++ 函数、类型、宏或变量名称') {
+  if (name && typeof name==='object' && validName(name.name)) return name.name;
   if (typeof name==='string' && validName(name)) return name;
   const cursorName=nameAtCursor();
   const input=await vscode.window.showInputBox({title:'Linux C 中文速查',prompt:placeholder,value:validName(cursorName)?cursorName:'',validateInput:v=>!validName(v)?'请输入符合 C 标识符规则的函数/宏名称':undefined});
   return input?.trim();
 }
+function recordForTarget(arg) {
+  const name=typeof arg==='string'?arg:arg?.name;
+  if(!validName(name))return null;
+  const kind=arg?.kind||symbols[name]?.symbolKind||'function';
+  const editor=vscode.window.activeTextEditor;
+  const line=Number.isInteger(arg?.line)?arg.line:editor?.selection?.active?.line;
+  const snippet=kind==='variable'&&editor&&Number.isInteger(line)?codeSnippet(editor.document,line):'';
+  return localRecord(name,{kind,context:snippet})||app.recent.get(name)||(kind==='variable'?variableRecord(name,snippet):null);
+}
 function showPanel(name,record) {
   const [proto,summary,params,success,failure,note]=record.entry;
-  const panel=vscode.window.createWebviewPanel('zhLinuxApiHoverDetail',`${name}() 中文说明`,vscode.ViewColumn.Beside,{enableScripts:false});
+  const panel=vscode.window.createWebviewPanel('zhLinuxApiHoverDetail',`${symbolTitle(name,record.symbolKind)} 中文说明`,vscode.ViewColumn.Beside,{enableScripts:false});
   const origin=record.kind==='offline'?'自定义离线函数库':record.kind==='cache'?'AI 查询缓存':'内置函数库';
-  const brief=briefFor(record);
-  panel.webview.html=`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>body{font:15px/1.75 system-ui,sans-serif;color:var(--vscode-editor-foreground);padding:20px;max-width:900px;margin:auto}code,pre{font-family:var(--vscode-editor-font-family),monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:var(--vscode-textCodeBlock-background);border-radius:8px}li{margin:4px 0}small{opacity:.7}h1{font-size:1.5em}</style></head><body><h1>${escHTML(name)}()</h1><small>${escHTML(origin)} · ${escHTML(topicMap[name]||'C/Linux')}</small><pre>${escHTML(proto)}</pre><h2>快速理解</h2><p><strong>作用：</strong>${escHTML(brief.summary)}</p><ul>${brief.params.map(p=>`<li>${escHTML(p)}</li>`).join('')}</ul><p><strong>成功：</strong>${escHTML(brief.success)}</p><p><strong>失败：</strong>${escHTML(brief.failure)}</p><hr><h2>完整解释</h2><p><strong>作用：</strong>${escHTML(summary)}</p><h2>参数</h2><ul>${params.map(p=>`<li>${escHTML(p)}</li>`).join('')}</ul><p><strong>✅ 成功返回：</strong>${escHTML(success)}</p><p><strong>❌ 失败/特殊情况：</strong>${escHTML(failure)}</p><p><strong>注意：</strong>${escHTML(note)}</p><small>依据：${escHTML(record.evidence||record.source||'本地整理')}</small></body></html>`;
+  const brief=briefFor(record),labels=meaningLabels(record);
+  panel.webview.html=`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>body{font:15px/1.75 system-ui,sans-serif;color:var(--vscode-editor-foreground);padding:20px;max-width:900px;margin:auto}code,pre{font-family:var(--vscode-editor-font-family),monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:var(--vscode-textCodeBlock-background);border-radius:8px}li{margin:4px 0}small{opacity:.7}h1{font-size:1.5em}</style></head><body><h1>${escHTML(symbolTitle(name,record.symbolKind))}</h1><small>${escHTML(origin)} · ${escHTML(topicMap[name]||'C/Linux')}</small><pre>${escHTML(proto)}</pre><h2>快速理解</h2><p><strong>作用：</strong>${escHTML(brief.summary)}</p><ul>${brief.params.map(p=>`<li>${escHTML(p)}</li>`).join('')}</ul><p><strong>${escHTML(labels.success)}：</strong>${escHTML(brief.success)}</p><p><strong>${escHTML(labels.failure)}：</strong>${escHTML(brief.failure)}</p><hr><h2>完整解释</h2><p><strong>作用：</strong>${escHTML(summary)}</p><h2>${escHTML(labels.parts)}</h2><ul>${params.map(p=>`<li>${escHTML(p)}</li>`).join('')}</ul><p><strong>${escHTML(labels.successFull)}：</strong>${escHTML(success)}</p><p><strong>${escHTML(labels.failureFull)}：</strong>${escHTML(failure)}</p><p><strong>注意：</strong>${escHTML(note)}</p><small>依据：${escHTML(record.evidence||record.source||'本地整理')}</small></body></html>`;
 }
 // 手动 AI 查询时提供多行可选要求；自动悬停继续使用默认策略，不弹窗。
 // 关闭窗口/取消不发送请求；空白输入等于沿用默认解释流程。
-function promptAiInstructions(name,existing,force=false) {
+function promptAiInstructions(name,existing,force=false,symbolKind='function') {
   return new Promise(resolve=>{
     const panel=vscode.window.createWebviewPanel('zhLinuxAiRequirements',
-      `AI ${force?'重新解释':'解释'} ${name}()`,vscode.ViewColumn.Beside,{enableScripts:true});
+      `AI ${force?'重新解释':'解释'} ${symbolTitle(name,symbolKind)}`,vscode.ViewColumn.Beside,{enableScripts:true});
     const nonce=crypto.randomBytes(18).toString('base64');
     const old=existing?.entry;
     const preview=old?`<details><summary>查看当前解释（用作定向修改的参考）</summary>
@@ -169,7 +199,7 @@ function promptAiInstructions(name,existing,force=false) {
     panel.webview.html=`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
 <style nonce="${nonce}">body{font:14px/1.65 system-ui,sans-serif;color:var(--vscode-editor-foreground);max-width:850px;margin:auto;padding:22px}h1{font-size:1.4em}textarea{width:100%;box-sizing:border-box;min-height:140px;padding:12px;background:var(--vscode-input-background);color:var(--vscode-input-foreground);border:1px solid var(--vscode-input-border,var(--vscode-panel-border));border-radius:6px;font:inherit;resize:vertical}button{padding:9px 16px;border:1px solid var(--vscode-button-border,transparent);border-radius:5px;cursor:pointer;background:var(--vscode-button-background);color:var(--vscode-button-foreground)}button.secondary{background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground)}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}.hint{opacity:.82}details{margin-top:24px;border:1px solid var(--vscode-panel-border);padding:12px;border-radius:6px}li{margin-bottom:4px}#count{font-size:.85em;text-align:right;opacity:.8}</style></head><body>
-<h1>🤖 ${force?'重新解释':'解释'} ${escHTML(name)}()</h1>
+<h1>🤖 ${force?'重新解释':'解释'} ${escHTML(symbolTitle(name,symbolKind))}</h1>
 <p class="hint">补充要求是可选的。留空并点击「按默认规则解释」，就与旧版本的 AI 查询方式相同。</p>
 ${old?'<p><strong>定向修改：</strong>如果只想修改其中一部分，请明确写出要改什么，其他未指定字段将由插件保留。例如“只缩短 tp 参数的详细解释，其他内容保持不变”。不填写要求时则重新生成完整解释（已有内容仍不会自动覆盖永久离线库）。</p>':'<p>可以填写需要的风格、篇幅和关注点，例如“参数尽量精简，多解释成功/失败返回值”。</p>'}
 <label for="req"><strong>我的补充要求（可不填）</strong></label>
@@ -193,15 +223,16 @@ ${preview}
 async function editExplanation(arg) {
   const name=await chooseName(arg,'输入要编辑的函数或宏名称');
   if (!name) return;
-  const record=localRecord(name)||app.recent.get(name);
+  const record=recordForTarget(arg);
   if (!record) {
     vscode.window.showWarningMessage(`${name}() 暂无中文说明。请先使用 AI 查询，或在离线库中手动新增。`);
     return;
   }
   const original=record.entry;
   const brief=briefFor(record);
-  const isBuiltIn=Object.prototype.hasOwnProperty.call(docs,name);
-  const panel=vscode.window.createWebviewPanel('zhLinuxApiHoverEdit',`编辑 ${name}() 的中文解释`,vscode.ViewColumn.Beside,{enableScripts:true});
+  const isBuiltIn=Object.prototype.hasOwnProperty.call(docs,name)||Boolean(symbols[name]);
+  const labels=meaningLabels(record);
+  const panel=vscode.window.createWebviewPanel('zhLinuxApiHoverEdit',`编辑 ${symbolTitle(name,record.symbolKind)} 的中文解释`,vscode.ViewColumn.Beside,{enableScripts:true});
   const nonce=crypto.randomBytes(18).toString('base64');
   const origin=record.kind==='offline'?'用户离线库':record.kind==='cache'?'AI 缓存':'内置函数库';
   const field=(id,label,value,rows=2)=>`<label for="${id}">${escHTML(label)}</label><textarea id="${id}" rows="${rows}" maxlength="6000">${escHTML(value)}</textarea>`;
@@ -211,18 +242,18 @@ async function editExplanation(arg) {
 body{font:14px/1.55 system-ui,sans-serif;color:var(--vscode-editor-foreground);padding:20px;max-width:860px;margin:auto}
 label{display:block;font-weight:600;margin:13px 0 5px}textarea{display:block;width:100%;box-sizing:border-box;resize:vertical;background:var(--vscode-input-background);color:var(--vscode-input-foreground);border:1px solid var(--vscode-input-border,var(--vscode-panel-border));border-radius:5px;padding:9px;font:inherit}textarea:focus{outline:1px solid var(--vscode-focusBorder)}h1{font-size:1.45em}h2{margin-top:28px;font-size:1.18em}small,.hint{opacity:.78}.actions{position:sticky;bottom:0;padding:12px 0;background:var(--vscode-editor-background);border-top:1px solid var(--vscode-panel-border)}button{cursor:pointer;padding:9px 18px;background:var(--vscode-button-background);color:var(--vscode-button-foreground);border:none;border-radius:5px}button:disabled{opacity:.55;cursor:wait}#status{margin-left:10px}hr{border:0;border-top:1px solid var(--vscode-panel-border);margin-top:24px}
 </style></head><body>
-<h1>✏️ 编辑 ${escHTML(name)}() 中文解释</h1><p class="hint">原始来源：${escHTML(origin)}。点击保存后，新内容覆盖悬停显示；${isBuiltIn?'内置原文不会被修改，可通过删除用户离线覆盖记录恢复。':'历史 AI 缓存不会被修改。'}所有修改仅存储在本机 VS Code 的用户离线库。</p>
+<h1>✏️ 编辑 ${escHTML(symbolTitle(name,record.symbolKind))} 中文解释</h1><p class="hint">原始来源：${escHTML(origin)}。点击保存后，新内容覆盖悬停显示；${isBuiltIn?'内置原文不会被修改，可通过删除用户离线覆盖记录恢复。':'历史 AI 缓存不会被修改。'}所有修改仅存储在本机 VS Code 的用户离线库。</p>
 <h2>① 简洁版（默认悬停内容）</h2>
 ${field('b_summary','作用（简洁）',brief.summary,2)}
-${field('b_params','参数（每行一项）',brief.params.join('\n'),5)}
-${field('b_success','成功返回值（简洁）',brief.success,2)}
-${field('b_failure','失败 / 特殊返回值（简洁）',brief.failure,2)}
+${field('b_params',labels.parts+'（每行一项）',brief.params.join('\n'),5)}
+${field('b_success',labels.success+'（简洁）',brief.success,2)}
+${field('b_failure',labels.failure+'（简洁）',brief.failure,2)}
 <hr><h2>② 详细版（“查看完整解释”）</h2>
-${field('proto','函数原型 / 宏用法',original[0],2)}
+${field('proto',labels.proto,original[0],2)}
 ${field('summary','完整作用说明',original[1],4)}
-${field('params','完整参数（每行一项）',original[2].join('\n'),6)}
-${field('success','成功返回值详细说明',original[3],3)}
-${field('failure','失败和特殊情况详细说明',original[4],3)}
+${field('params',labels.parts+'（每行一项）',original[2].join('\n'),6)}
+${field('success',labels.successFull+'（详细）',original[3],3)}
+${field('failure',labels.failureFull+'（详细）',original[4],3)}
 ${field('note','补充提醒',original[5],5)}
 <p class="hint">参数栏每行填写一项；不需要输入方括号、引号或 JSON。保存后再次悬停，即可看到更新。</p>
 <div class="actions"><button id="save">💾 保存全部修改</button><span id="status" role="status" aria-live="polite"></span></div>
@@ -252,7 +283,7 @@ window.addEventListener('message',event=>{
       const compact={summary:v.b_summary.trim(),params:lines(v.b_params),success:v.b_success.trim(),failure:v.b_failure.trim()};
       if (!entry[0] || !entry[1] || !entry[3] || !entry[4] || !compact.summary || !compact.success || !compact.failure) throw new Error('原型、作用和返回值不能为空');
       if (!validateEntry(entry) || !validateBrief(compact)) throw new Error('内容格式不合法或参数项过多（最多20项）');
-      await app.store.putOffline(name,entry,'用户手动编辑',record.evidence||record.source||'',compact);
+      await app.store.putOffline(name,entry,'用户手动编辑',record.evidence||record.source||'',compact,record.symbolKind||null);
       app.recent.delete(name);
       await panel.webview.postMessage({type:'saveResult',ok:true});
       vscode.window.showInformationMessage(`${name}() 中文解释已保存到用户离线库`);
@@ -260,24 +291,84 @@ window.addEventListener('message',event=>{
   });
   panel.onDidDispose?.(()=>handler.dispose());
 }
+// 不依赖 Enter 作为唯一提交方式。VS Code Quick Input 在部分输入法或平台上可能不响应 Enter。
+// createInputBox 提供明确的「保存」按钮，并在提交时将输入值交给 SecretStorage，绝不写入普通配置。
+async function promptSecureKey() {
+  const input=vscode.window.createInputBox();
+  const saveButton={iconPath:new vscode.ThemeIcon('check'),tooltip:'保存 API Key（无法按 Enter 时点这里）'};
+  input.title='设置 / 更新 API Key';
+  input.prompt='粘贴密钥后按 Enter，或点击右侧 ✓ 保存按钮；密钥不会写入 settings.json';
+  input.placeholder='输入新的 API Key（输入内容隐藏）';
+  input.password=true;
+  input.ignoreFocusOut=true;
+  input.buttons=[saveButton];
+  return new Promise(resolve=>{
+    let settled=false;
+    const subscriptions=[];
+    const finish=value=>{
+      if(settled)return;
+      settled=true;
+      input.hide();
+      for(const s of subscriptions)s.dispose();
+      input.dispose();
+      resolve(value);
+    };
+    const accept=()=>{
+      const key=input.value.trim();
+      if(!key){input.validationMessage='API Key 不能为空';return;}
+      finish(key);
+    };
+    subscriptions.push(input.onDidAccept(accept));
+    subscriptions.push(input.onDidTriggerButton(button=>{if(button===saveButton)accept();}));
+    subscriptions.push(input.onDidChangeValue(()=>{input.validationMessage=undefined;}));
+    subscriptions.push(input.onDidHide(()=>finish(undefined)));
+    input.show();
+  });
+}
+async function storeApiKey(key) {
+  await app.ctx.secrets.store('aiApiKey',key);
+  const confirm=await app.ctx.secrets.get('aiApiKey');
+  if(!confirm || confirm!==key)throw new Error('保存后无法从 SecretStorage 读取到相同的密钥');
+}
 async function setApiKey() {
-  const current=await apiConfigStatus();
-  const choice=await vscode.window.showQuickPick(['设置 / 更新 API Key',...(current.keyPresent?['删除已有 API Key']:[])],{title:'管理 AI API Key',placeHolder:current.keyPresent?'当前状态：已保存密钥':'当前状态：尚未保存密钥'});
-  if (!choice) return;
-  if (choice.startsWith('删除')) {
+  const key=await promptSecureKey();
+  if(key===undefined)return;
+  try {
+    await storeApiKey(key);
+    vscode.window.showInformationMessage('API Key 已安全保存且读取验证成功。注意：仅证明本机保存成功，不代表服务端认证通过。');
+  }catch(e) {
+    vscode.window.showErrorMessage('API Key 保存失败：'+e.message+'。请检查 VS Code 密钥存储环境。');
+  }
+}
+async function deleteApiKey() {
+  const choice=await vscode.window.showWarningMessage('确定删除此扩展保存的 API Key 吗？',{modal:true},'确认删除');
+  if(choice!=='确认删除')return;
+  try{
     await app.ctx.secrets.delete('aiApiKey');
-    vscode.window.showInformationMessage('已删除本扩展保存的 API Key');
+    vscode.window.showInformationMessage('已删除此扩展的 API Key');
+  }catch(e){vscode.window.showErrorMessage('删除密钥失败：'+e.message);}
+}
+async function testAiAuthentication() {
+  const state=await apiConfigStatus();
+  if(!state.ready){
+    vscode.window.showWarningMessage('无法测试鉴权，缺少：'+[...state.missing,...(state.storageError?[state.storageError]:[])].join('、'));
     return;
   }
-  const key=await vscode.window.showInputBox({title:'输入 API Key',password:true,ignoreFocusOut:true,placeHolder:'sk-...（不会写入 settings.json）',validateInput:v=>v.trim().length===0?'密钥不能为空':undefined});
-  if (key===undefined) return;
-  try {
-    await app.ctx.secrets.store('aiApiKey',key.trim());
-    const confirm=await app.ctx.secrets.get('aiApiKey');
-    if (!confirm || confirm!==key.trim()) throw new Error('保存后无法从 SecretStorage 读取到相同的密钥');
-    vscode.window.showInformationMessage('API Key 已安全保存并验证可读；不会显示或上传密钥');
+  const choice=await vscode.window.showInformationMessage(
+    '这将使用当前保存的 API Key、模型和地址发送一次真实的 Chat Completions POST 请求，可能消耗少量 Token。要继续吗？',
+    {modal:true},'开始测试');
+  if(choice!=='开始测试')return;
+  try{
+    const secret=await app.ctx.secrets.get('aiApiKey');
+    const reply=await vscode.window.withProgress({location:vscode.ProgressLocation.Notification,title:'正在测试 AI 模型鉴权（真实 POST）',cancellable:false},
+      ()=>callCompatibleApi({baseUrl:state.conf.baseUrl,model:state.conf.model,key:secret,
+        messages:[{role:'user',content:'请仅回复 OK'}],timeoutMs:Math.min(30000,state.conf.timeoutMs),retryCount:0,proxyUrl:state.conf.proxyUrl}));
+    if(reply && reply.trim())vscode.window.showInformationMessage('真实 AI 鉴权测试成功：API 认证通过，模型返回了文本。');
   }catch(e){
-    vscode.window.showErrorMessage('API Key 保存失败：'+e.message+'。请检查 VS Code 密钥存储环境。');
+    app.output.appendLine('真实 AI 鉴权测试失败：'+e.message);
+    const action=await vscode.window.showErrorMessage('真实 AI 鉴权测试失败：'+e.message,'重新设置 API Key','查看网络日志');
+    if(action==='重新设置 API Key')await setApiKey();
+    else if(action==='查看网络日志')app.output.show(true);
   }
 }
 async function configureApi() {
@@ -297,9 +388,9 @@ async function configureApi() {
     return;
   }
   if (choice.startsWith('现在')) {
-    const key=await vscode.window.showInputBox({title:'输入 API Key',password:true,ignoreFocusOut:true,placeHolder:'sk-...',validateInput:v=>v.trim()?undefined:'密钥不能为空'});
-    if (key===undefined) {vscode.window.showWarningMessage('密钥输入已取消，AI 配置可能仍不完整。');return;}
-    try {await app.ctx.secrets.store('aiApiKey',key.trim());}
+    const key=await promptSecureKey();
+    if(key===undefined){vscode.window.showWarningMessage('密钥输入已取消，AI 配置可能仍不完整。');return;}
+    try{await storeApiKey(key);}
     catch(e){vscode.window.showErrorMessage('无法保存 API Key：'+e.message);return;}
   }
   const result=await apiConfigStatus();
@@ -307,18 +398,18 @@ async function configureApi() {
   else vscode.window.showWarningMessage('AI 配置仍不完整：'+[...result.missing,...(result.storageError?[result.storageError]:[])].join('、'));
 }
 const pending=new Map();
-async function queryAi(name,{force=false,quiet=false,signal,instructions=''}={}) {
+async function queryAi(name,{force=false,quiet=false,signal,instructions='',symbolKind='function',codeContext=''}={}) {
   if (!validName(name)) throw new Error('请输入有效的函数/宏名称');
   if (typeof instructions!=='string' || instructions.length>2000)throw new Error('补充要求最多 2000 字');
   const conf=settings();
-  const key=cacheKey(name,conf.baseUrl,conf.model);
+  const key=entryCacheKey(name,conf,symbolKind,codeContext);
   const hasInstructions=Boolean(instructions.trim());
   // 带补充要求的请求必须绕开已有词条和缓存，否则 AI 根本不会收到要求。
   if (!force && !hasInstructions) {
-    const hit=localRecord(name);
+    const hit=localRecord(name,{kind:symbolKind,context:codeContext});
     if (hit) return hit;
   }
-  const previous=hasInstructions ? (app.recent.get(name)||localRecord(name)) : null;
+  const previous=hasInstructions ? (app.recent.get(name)||localRecord(name,{kind:symbolKind,context:codeContext})) : null;
   const state=await apiConfigStatus();
   if (!state.ready) {
     const details=[...state.missing,...(state.storageError?[state.storageError]:[])].join('、');
@@ -333,14 +424,15 @@ async function queryAi(name,{force=false,quiet=false,signal,instructions=''}={})
   if (pending.has(inflightKey)) return pending.get(inflightKey);
   const work=(async()=>{
     const secret=await app.ctx.secrets.get('aiApiKey');
-    const {entry,brief,evidence}=await explain(name,{baseUrl:conf.baseUrl,model:conf.model,timeoutMs:conf.timeoutMs,retryCount:conf.retryCount,proxyUrl:conf.proxyUrl},secret,
-      {signal,instructions,previous,onRetry:info=>app.output.appendLine(`${name}(): 第 ${info.attempt} 次请求暂时失败（${info.reason}），正在重试`) });
+    const worker=symbolKind==='function'?explain:(n,a,k,opts)=>explainSymbol(n,symbolKind,a,k,{...opts,codeContext});
+    const {entry,brief,evidence}=await worker(name,{baseUrl:conf.baseUrl,model:conf.model,timeoutMs:conf.timeoutMs,retryCount:conf.retryCount,proxyUrl:conf.proxyUrl},secret,
+      {signal,instructions,previous,onRetry:info=>app.output.appendLine(`${name}: 第 ${info.attempt} 次请求暂时失败（${info.reason}），正在重试`) });
     if (signal?.aborted) throw new Error('已取消');
-    const record={entry,...(brief?{brief}:{}),source:`AI:${name}`,evidence,kind:'cache',updatedAt:new Date().toISOString()};
+    const record={entry,...(brief?{brief}:{}),source:`AI:${name}`,evidence,symbolKind,kind:'cache',updatedAt:new Date().toISOString()};
     app.recent.set(name,record);
-    if (conf.cacheEnabled) await app.store.putCache(key,entry,`AI:${name}`,evidence,brief||null);
-    if (conf.saveMode==='auto' && !Object.prototype.hasOwnProperty.call(docs,name) && !app.store.offline[name]) {
-      await app.store.putOffline(name,entry,'AI 自动保存（未人工审核）',evidence,brief||null);
+    if (conf.cacheEnabled) await app.store.putCache(key,entry,`AI:${name}`,evidence,brief||null,symbolKind==='function'?null:symbolKind);
+    if (conf.saveMode==='auto' && symbolKind!=='variable' && !Object.prototype.hasOwnProperty.call(docs,name) && !symbols[name] && !app.store.offline[name]) {
+      await app.store.putOffline(name,entry,'AI 自动保存（未人工审核）',evidence,brief||null,symbolKind==='function'?null:symbolKind);
       return {...record,kind:'offline'};
     }
     return record;
@@ -348,53 +440,78 @@ async function queryAi(name,{force=false,quiet=false,signal,instructions=''}={})
   pending.set(inflightKey,work);
   try{return await work;}finally{pending.delete(inflightKey);}
 }
-async function explainCommand(arg, force=false) {
+async function explainCommand(arg, force=false,asIdentifier=false) {
   const name=await chooseName(arg); if (!name) return;
+  let symbolKind=asIdentifier?(arg?.kind||symbols[name]?.symbolKind||'variable'):(arg?.kind||app.store.offline[name]?.symbolKind||symbols[name]?.symbolKind||'function');
+  if(!names[symbolKind])symbolKind='variable';
+  const editor=vscode.window.activeTextEditor;
+  const atLine=Number.isInteger(arg?.line)?arg.line:editor?.selection?.active?.line;
+  const snippet=symbolKind!=='function'&&editor&&Number.isInteger(atLine)?codeSnippet(editor.document,atLine):'';
+  let codeContext='';
   // 仅在主动查询时展示要求输入。空要求沿用默认行为；取消则不请求。
-  const previous=app.recent.get(name)||localRecord(name);
-  const instructions=await promptAiInstructions(name,previous,force);
+  const previous=app.recent.get(name)||localRecord(name,{kind:symbolKind});
+  const instructions=await promptAiInstructions(name,previous,force,symbolKind);
   if(instructions===undefined)return;
+  if(symbolKind==='variable' && snippet) {
+    const permission=await vscode.window.showWarningMessage(`是否发送当前文件附近最多 7 行代码给 AI？此代码可能包含敏感信息，请先核对：\n\n${snippet}` ,{modal:true},'允许发送片段','仅发送名称');
+    if(!permission)return;
+    if(permission==='允许发送片段')codeContext=snippet;
+  }
   try {
     let result;
     await vscode.window.withProgress({location:vscode.ProgressLocation.Notification,title:`查询 ${name}() 的中文函数说明`,cancellable:false},async()=>{
-      result=await queryAi(name,{force,instructions});
+      result=await queryAi(name,{force,instructions,symbolKind,codeContext});
     });
     showPanel(name,result);
     if (result.kind==='cache' && (force||instructions || !previous)) {
-      const action=await vscode.window.showInformationMessage(`${name}() 的 AI 解释已生成${settings().cacheEnabled?'并缓存':''}。${previous?'原离线词条尚未被覆盖。':'可保存为永久离线词条。'}`, '保存到永久离线库');
+      const action=await vscode.window.showInformationMessage(`${symbolTitle(name,symbolKind)} 的 AI 解释已生成${settings().cacheEnabled?'并缓存':''}。${previous?'原离线词条尚未被覆盖。':'可保存为永久离线词条。'}`, '保存到永久离线库');
       if (action) await saveOffline(name);
     }
   } catch(e) {if (!/AI 配置缺失|已取消/.test(e.message)) {
     app.output.appendLine(`${name}(): ${e.message}`);
-    const action=await vscode.window.showErrorMessage(`中文函数查询失败：${e.message}`,'查看网络日志','测试 API 连接');
+    const action=await vscode.window.showErrorMessage(`中文函数查询失败：${e.message}`,'查看网络日志','测试真实 AI 鉴权');
     if(action==='查看网络日志')app.output.show(true);
-    if(action==='测试 API 连接')await testAiNetwork();
+    if(action==='测试真实 AI 鉴权')await testAiAuthentication();
   }}
 }
 async function saveOffline(arg) {
   const name=await chooseName(arg,'输入要从 AI 缓存保存的函数名称'); if (!name) return;
   const cfgAi=settings();
-  const hit=cfgAi.baseUrl && cfgAi.model? app.store.cache[cacheKey(name,cfgAi.baseUrl,cfgAi.model)]:null;
+  const preferred=app.recent.get(name);
+  const k=arg?.kind||preferred?.symbolKind||app.store.offline[name]?.symbolKind||symbols[name]?.symbolKind||'function';
+  const editor=vscode.window.activeTextEditor;
+  const line=Number.isInteger(arg?.line)?arg.line:editor?.selection?.active?.line;
+  const context=k==='variable'&&editor&&Number.isInteger(line)?codeSnippet(editor.document,line):'';
+  const hit=cfgAi.baseUrl && cfgAi.model? app.store.cache[entryCacheKey(name,cfgAi,k,context)]:null;
   let rec=app.recent.get(name) || hit || app.store.offline[name];
   if (!rec) {
     vscode.window.showWarningMessage(`${name}() 尚无可保存的 AI 缓存，请先使用“AI 查询函数”。`);
     return;
   }
-  if (app.store.offline[name] || Object.prototype.hasOwnProperty.call(docs,name)) {
+  if (app.store.offline[name] || Object.prototype.hasOwnProperty.call(docs,name) || symbols[name]) {
     const result=await vscode.window.showWarningMessage(`${name}() 已存在离线说明。要用当前 AI 缓存覆盖自定义离线记录吗？`,{modal:true},'确认覆盖');
     if (result!=='确认覆盖') return;
   }
-  await app.store.putOffline(name,rec.entry,'AI 结果 · 用户确认保存',rec.evidence||'',rec.brief||null);
+  if((rec.symbolKind||k)==='variable') {
+    const okay=await vscode.window.showWarningMessage('普通变量名在不同文件中可能有不同含义。保存后会按名称在所有项目中显示相同解释，确认仍要永久保存吗？',{modal:true},'仍然保存');
+    if(okay!=='仍然保存')return;
+  }
+  await app.store.putOffline(name,rec.entry,'AI 结果 · 用户确认保存',rec.evidence||'',rec.brief||null,(rec.symbolKind||k)==='function'?null:(rec.symbolKind||k));
   vscode.window.showInformationMessage(`已保存 ${name}() 到永久离线函数与宏库，断网也可查看`);
 }
+async function explainIdentifierCommand(arg) {
+  const name=await chooseName(arg);if(!name)return;
+  const kind=arg?.kind||symbols[name]?.symbolKind||(/^[A-Z][A-Z0-9_]+$/.test(name)?'macro':/_t$/.test(name)?'typedef':'variable');
+  await explainCommand({...((arg&&typeof arg==='object')?arg:{}),name,kind},false,true);
+}
 async function searchFunctions() {
-  const names=new Set([...Object.keys(docs),...Object.keys(app.store.offline)]);
-  const items=[{label:'$(sparkle)  AI 查询未收录的函数',name:null,description:'输入函数名，按需使用 AI'},
-    ...[...names].sort().map(name=>({label:`${name}()`,name,description:app.store.offline[name]?'自定义离线库':topicMap[name]||'C/Linux API',detail:(app.store.offline[name]?.entry||docs[name])[1]}))];
-  const item=await vscode.window.showQuickPick(items,{title:`中文函数速查（${names.size} 个永久离线条目）`,matchOnDescription:true,matchOnDetail:true});
+  const listed=new Set([...Object.keys(docs),...Object.keys(symbols),...Object.keys(app.store.offline)]);
+  const items=[{label:'$(sparkle)  AI 查询未收录的标识符',name:null,description:'输入函数、类型、宏或变量名，按需使用 AI'},
+    ...[...listed].sort().map(name=>({label:symbolTitle(name,app.store.offline[name]?.symbolKind||symbols[name]?.symbolKind||'function'),name,description:app.store.offline[name]?'自定义离线库':topicMap[name]||names[symbols[name]?.symbolKind]||'C/Linux API',detail:(app.store.offline[name]?.entry||docs[name]||symbols[name]?.entry)[1]}))];
+  const item=await vscode.window.showQuickPick(items,{title:`中文标识符速查（${listed.size} 个永久离线条目）`,matchOnDescription:true,matchOnDetail:true});
   if (!item) return;
   if (item.name) showPanel(item.name,localRecord(item.name));
-  else await explainCommand();
+  else await explainIdentifierCommand();
 }
 async function exportOffline() {
   const uri=await vscode.window.showSaveDialog({title:'导出自定义离线库（不包含 API Key 或 AI 缓存）',defaultUri:vscode.Uri.joinPath(app.ctx.globalStorageUri,'zh-linux-offline-library-export.json'),filters:{'JSON 文件':['json']}});
@@ -438,7 +555,7 @@ async function editOfflineEntry(name) {
     entered.push(answer.trim());
   }
   const entry=[entered[0],entered[1],entered[2].split('；').map(s=>s.trim()).filter(Boolean),entered[3],entered[4],entered[5]];
-  await app.store.putOffline(name,entry,'用户手工维护','用户编辑');
+  await app.store.putOffline(name,entry,'用户手工维护','用户编辑',null,symbols[name]?.symbolKind||null);
   vscode.window.showInformationMessage(`已保存 ${name}() 的自定义离线说明`);
 }
 async function manageOffline() {
@@ -456,7 +573,7 @@ async function manageOffline() {
   if (!choice) return;
   switch(choice.op){
     case 'new': {const n=await vscode.window.showInputBox({title:'新增离线函数或宏',prompt:'输入函数/宏名称（例如 custom_init）',validateInput:v=>validName(v)?undefined:'请输入 C 标识符名称'});if(n)await editOfflineEntry(n);break;}
-    case 'update': {const n=await vscode.window.showQuickPick([...new Set([...Object.keys(docs),...Object.keys(app.store.offline)])].sort(),{title:'选择要编辑的函数（包括内置库）'});if(n)await editExplanation(n);break;}
+    case 'update': {const n=await vscode.window.showQuickPick([...new Set([...Object.keys(docs),...Object.keys(symbols),...Object.keys(app.store.offline)])].sort(),{title:'选择要编辑的函数（包括内置库）'});if(n)await editExplanation(n);break;}
     case 'browse': {
       const n=await vscode.window.showQuickPick(Object.keys(app.store.offline).sort(),{title:'选择查看的自定义函数/宏'});
       if(n)showPanel(n,localRecord(n));break;
@@ -491,33 +608,40 @@ async function activate(context) {
   context.subscriptions.push(output);
   app={store,ctx:context,recent:new Map(),output};
   const commands={
-    searchFunctions, explainFunction:arg=>explainCommand(arg,false),refreshFunction:arg=>explainCommand(arg,true),
-    saveOffline,manageOffline,editExplanation,configureApi,setApiKey,checkAiConfig,testAiNetwork,clearCache,
-    showDetail:async arg=>{const name=await chooseName(arg);if(!name)return;const rec=localRecord(name)||app.recent.get(name);if(rec)showPanel(name,rec);else vscode.window.showWarningMessage('未找到本地说明，请先进行 AI 查询。');},reloadOffline:async()=>{await store.reloadOffline();vscode.window.showInformationMessage('离线库已经重新载入');},exportOffline,importOffline
+    searchFunctions, explainFunction:arg=>explainCommand(arg,false),explainIdentifier:explainIdentifierCommand,refreshFunction:arg=>explainCommand(arg,true),
+    saveOffline,manageOffline,editExplanation,configureApi,setApiKey,deleteApiKey,checkAiConfig,testAiNetwork,testAiAuthentication,clearCache,
+    showDetail:async arg=>{const name=await chooseName(arg);if(!name)return;const rec=recordForTarget(arg);if(rec)showPanel(name,rec);else vscode.window.showWarningMessage('未找到本地说明，请先进行 AI 查询。');},reloadOffline:async()=>{await store.reloadOffline();vscode.window.showInformationMessage('离线库已经重新载入');},exportOffline,importOffline
   };
   for (const [name,fn] of Object.entries(commands)) context.subscriptions.push(vscode.commands.registerCommand(`zhLinuxApiHover.${name}`,fn));
   context.subscriptions.push(vscode.languages.registerHoverProvider([{language:'c'},{language:'cpp'}],{
     async provideHover(document,position,token){
       const range=document.getWordRangeAtPosition(position,/[A-Za-z_]\w*/);
-      if (!range) return;
+      if(!range)return;
       const name=document.getText(range);
-      if (!validName(name)) return;
-      const rest=document.lineAt(range.end.line).text.slice(range.end.character);
-      if (!/^\s*\(/.test(rest)) return;
-      const cached=localRecord(name);
-      if (cached) return new vscode.Hover(markdownFor(name,cached),range);
-      if (settings().hoverMode!=='auto') return new vscode.Hover(missingMarkdown(name),range);
-      // 用户明确启用 auto 才调用网络，等待片刻减少鼠标路过误触。
+      if(!validName(name)||isKeyword(name))return;
+      const symbol=inspectSymbol(document,range,name);
+      if(!symbol)return;
+      const {kind,line,character}=symbol;
+      const target={name,kind,line,character};
+      const snippet=kind==='variable'?codeSnippet(document,line):'';
+      const cached=localRecord(name,{kind,context:snippet});
+      if(cached)return new vscode.Hover(markdownFor(name,cached,target),range);
+      if(kind==='variable') {
+        const inferred=variableRecord(name,snippet);
+        if(inferred)return new vscode.Hover(markdownFor(name,inferred,target),range);
+      }
+      // 未知变量/类型不自动调用 AI，防止鼠标路过大量普通词时耗费额度、泄露代码。
+      if(kind!=='function'||settings().hoverMode!=='auto')return new vscode.Hover(missingMarkdown(name,kind,target),range);
       await new Promise(resolve=>setTimeout(resolve,420));
-      if (token?.isCancellationRequested) return;
+      if(token?.isCancellationRequested)return;
       const abort=new AbortController();
       const disposable=token?.onCancellationRequested?.(()=>abort.abort());
       try {
         const item=await queryAi(name,{quiet:true,signal:abort.signal});
         return token?.isCancellationRequested?undefined:new vscode.Hover(markdownFor(name,item),range);
       }catch(e){
-        if (token?.isCancellationRequested) return;
-        const md=missingMarkdown(name);
+        if(token?.isCancellationRequested)return;
+        const md=missingMarkdown(name,kind,target);
         md.appendMarkdown(`\n\n*自动查询失败：${escapeMD(e.message)}*`);
         return new vscode.Hover(md,range);
       }finally{disposable?.dispose();}

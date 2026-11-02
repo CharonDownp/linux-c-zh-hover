@@ -1,8 +1,8 @@
 {
   "name": "zh-linux-api-hover",
-  "displayName": "Linux C 函数中文悬停速查",
-  "description": "Linux/C 中文速查：可按自定义要求定向 AI 修改、编辑简洁/详细解释、AI 缓存和永久离线库、可配置 AI 接口和网络重试。",
-  "version": "1.5.0",
+  "displayName": "C/C++ 中文标识符速查（Linux）",
+  "description": "面向 C/C++ 的中文悬停速查：函数、结构体、类型、宏、成员及变量；AI 按需解释、局部修改与可持久化离线知识库。",
+  "version": "1.6.0",
   "publisher": "local-study-tools",
   "engines": {
     "vscode": "^1.75.0"
@@ -23,7 +23,7 @@
     "commands": [
       {
         "command": "zhLinuxApiHover.searchFunctions",
-        "title": "搜索离线函数与宏（中文）",
+        "title": "搜索函数、结构体、类型与宏（中文）",
         "category": "Linux C 中文速查"
       },
       {
@@ -32,28 +32,33 @@
         "category": "Linux C 中文速查"
       },
       {
+        "command": "zhLinuxApiHover.explainIdentifier",
+        "title": "使用 AI 解释当前类型、宏或变量（可选提供代码上下文）",
+        "category": "Linux C 中文速查"
+      },
+      {
         "command": "zhLinuxApiHover.showDetail",
-        "title": "查看函数完整中文解释",
+        "title": "查看标识符完整中文解释",
         "category": "Linux C 中文速查"
       },
       {
         "command": "zhLinuxApiHover.editExplanation",
-        "title": "编辑当前函数的中文解释（简洁版与详细版）",
+        "title": "编辑当前标识符的中文解释（简洁版与详细版）",
         "category": "Linux C 中文速查"
       },
       {
         "command": "zhLinuxApiHover.refreshFunction",
-        "title": "使用 AI 重新解释 / 按要求修改当前函数",
+        "title": "使用 AI 重新解释 / 按要求修改当前标识符",
         "category": "Linux C 中文速查"
       },
       {
         "command": "zhLinuxApiHover.saveOffline",
-        "title": "将 AI 解释保存到离线函数与宏库",
+        "title": "将 AI 解释保存到离线知识库",
         "category": "Linux C 中文速查"
       },
       {
         "command": "zhLinuxApiHover.manageOffline",
-        "title": "管理离线函数与宏库",
+        "title": "管理离线标识符知识库",
         "category": "Linux C 中文速查"
       },
       {
@@ -73,7 +78,17 @@
       },
       {
         "command": "zhLinuxApiHover.setApiKey",
-        "title": "设置 / 删除 API Key（安全存储）",
+        "title": "设置 / 更新 API Key（安全存储）",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.deleteApiKey",
+        "title": "删除已保存的 API Key（需确认）",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.testAiAuthentication",
+        "title": "测试真实 AI 鉴权（POST，可能消耗少量 Token）",
         "category": "Linux C 中文速查"
       },
       {
@@ -83,17 +98,17 @@
       },
       {
         "command": "zhLinuxApiHover.reloadOffline",
-        "title": "重新载入离线函数库 JSON",
+        "title": "重新载入离线知识库 JSON",
         "category": "Linux C 中文速查"
       },
       {
         "command": "zhLinuxApiHover.exportOffline",
-        "title": "导出自定义离线函数与宏库",
+        "title": "导出自定义离线知识库",
         "category": "Linux C 中文速查"
       },
       {
         "command": "zhLinuxApiHover.importOffline",
-        "title": "导入自定义离线函数与宏库",
+        "title": "导入自定义离线知识库",
         "category": "Linux C 中文速查"
       }
     ],
@@ -121,7 +136,7 @@
             "仅点击悬停链接或使用命令时调用 API",
             "鼠标悬停未收录的函数时自动请求（可能产生费用）"
           ],
-          "description": "未收录函数的 AI 查询模式。自动模式会发送函数名称及可用的本机 man 文本到配置的 API。"
+          "description": "默认 manual；自动模式仅对未收录的函数查询，非函数标识符始终需手动发起，以避免无意间上传代码或产生费用。"
         },
         "zhLinuxApiHover.ai.saveMode": {
           "type": "string",
@@ -185,6 +200,11 @@
           "group": "navigation@8"
         },
         {
+          "command": "zhLinuxApiHover.explainIdentifier",
+          "when": "editorLangId == c || editorLangId == cpp",
+          "group": "navigation@8.5"
+        },
+        {
           "command": "zhLinuxApiHover.editExplanation",
           "when": "editorLangId == c || editorLangId == cpp",
           "group": "navigation@9"
@@ -203,7 +223,12 @@
     "pthread",
     "socket",
     "AI",
-    "openai"
+    "openai",
+    "struct",
+    "typedef",
+    "variable",
+    "macro",
+    "sockaddr_in"
   ],
   "license": "MIT"
 }
