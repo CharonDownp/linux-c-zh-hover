@@ -1,0 +1,76 @@
+name: One-time v1.6.0 source sync and release
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/staging/v1.6.0.patch.br.b64.txt']
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate and apply source update
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'JS'
+          const fs = require('node:fs');
+          const zlib = require('node:zlib');
+          const crypto = require('node:crypto');
+          const encoded = fs.readFileSync('.github/staging/v1.6.0.patch.br.b64.txt','utf8').trim();
+          const bytes = Buffer.from(encoded,'base64');
+          const patch = zlib.brotliDecompressSync(bytes);
+          const digest = crypto.createHash('sha256').update(patch).digest('hex');
+          if(digest !== '1788696f04d0a3e09af62546db7cf4d5671913a973dbd963bd50dcec900ac66d') {
+            throw new Error('Source update checksum mismatch');
+          }
+          fs.writeFileSync('/tmp/update.patch',patch);
+          JS
+          git apply --check /tmp/update.patch
+          git apply /tmp/update.patch
+          test "$(node -p "require('./package.json').version")" = "1.6.0"
+          rm .github/staging/v1.6.0.patch.br.b64.txt
+
+      - name: Test and package
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test/run-tests.js
+          python3 tools/build_vsix.py zh-linux-api-hover-1.6.0.vsix
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile('zh-linux-api-hover-1.6.0.vsix') as z:
+            assert z.testzip() is None
+            names=set(z.namelist())
+            for x in ['extension/package.json','extension/extension.js','extension/lib/ai.js','extension/lib/symbols.js','extension/symbol-docs.js']:
+              assert x in names, x
+          PY
+
+      - name: Commit synchronized source and publish Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: release v1.6.0 with identifier hover support"
+          git tag v1.6.0
+          git push origin HEAD:main v1.6.0
+          python3 - <<'PY'
+          import pathlib,re
+          s=pathlib.Path('CHANGELOG.md').read_text(encoding='utf-8')
+          m=re.search(r'(?ms)^## \[1\.6\.0\].*?\n(.*?)(?=^## \[|\Z)',s)
+          pathlib.Path('release-notes.md').write_text(
+            '# v1.6.0 更新说明\n\n'+(m.group(1).strip() if m else '增加非函数标识符中文速查。')+'\n',
+            encoding='utf-8')
+          PY
+          gh release create v1.6.0 zh-linux-api-hover-1.6.0.vsix --verify-tag --title "C/C++ 中文标识符速查 v1.6.0" --notes-file release-notes.md --latest
