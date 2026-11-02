@@ -1,0 +1,122 @@
+name: Build and publish VSIX
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vsix-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Read and validate version
+        id: meta
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "package.json version must be X.Y.Z"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "vsix=zh-linux-api-hover-$version.vsix" >> "$GITHUB_OUTPUT"
+
+      - name: Check for an existing Release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists; not overwriting it."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate source and run tests
+        if: steps.existing.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in extension.js builtin-docs.js lib/ai.js lib/brief.js lib/revision.js lib/storage.js lib/transport.js; do
+            test -f "$file" || { echo "Missing required source file: $file"; exit 1; }
+            node --check "$file"
+          done
+          node -e "for (const name of ['package.json','additional-docs.json','categories.json']) JSON.parse(require('node:fs').readFileSync(name,'utf8'))"
+          if [ -f test/run-tests.js ]; then
+            node test/run-tests.js
+          else
+            echo "No test/run-tests.js found; skipping project tests."
+          fi
+
+      - name: Package VSIX
+        if: steps.existing.outputs.skip != 'true'
+        env:
+          VSIX: ${{ steps.meta.outputs.vsix }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f tools/build_vsix.py ]; then
+            python3 tools/build_vsix.py "$VSIX"
+          else
+            npx --yes @vscode/vsce package --no-dependencies --out "$VSIX"
+          fi
+          test -s "$VSIX"
+          python3 -c "import os,zipfile; p=os.environ['VSIX']; z=zipfile.ZipFile(p); assert z.testzip() is None; assert 'extension/package.json' in z.namelist(); assert 'extension/lib/ai.js' in z.namelist()"
+
+      - name: Prepare Release notes from CHANGELOG
+        if: steps.existing.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re
+          version = os.environ['VERSION']
+          changelog = pathlib.Path('CHANGELOG.md')
+          source = changelog.read_text(encoding='utf-8') if changelog.exists() else ''
+          found = re.search(rf'(?ms)^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)', source)
+          body = found.group(1).strip() if found else ''
+          if not body:
+              body = '请参阅仓库中的 README.md 与 CHANGELOG.md。'
+          pathlib.Path('release-notes.md').write_text(
+              f'## v{version} 更新说明\n\n{body}\n', encoding='utf-8'
+          )
+          PY
+
+      - name: Publish tag and GitHub Release
+        if: steps.existing.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VSIX: ${{ steps.meta.outputs.vsix }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "$TAG"
+          fi
+          gh release create "$TAG" "$VSIX" --verify-tag --title "Linux C 中文速查 $TAG" --notes-file release-notes.md --latest
