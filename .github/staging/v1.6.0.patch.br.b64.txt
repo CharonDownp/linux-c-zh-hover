@@ -1,0 +1,1 @@
+Validated source update bundle for v1.6.0. Ready for one-time sync and release.
