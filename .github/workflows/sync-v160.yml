@@ -24,7 +24,7 @@ jobs:
           const fs = require('node:fs');
           const zlib = require('node:zlib');
           const crypto = require('node:crypto');
-          const encoded = fs.readFileSync('.github/staging/v1.6.0.patch.br.b64.txt','utf8').trim();
+          const encoded = Array.from({length:5},(_,i)=>fs.readFileSync('.github/staging/v1.6.0.patch.br.b64.'+i,'utf8').trim()).join('');
           const bytes = Buffer.from(encoded,'base64');
           const patch = zlib.brotliDecompressSync(bytes);
           const digest = crypto.createHash('sha256').update(patch).digest('hex');
@@ -36,7 +36,7 @@ jobs:
           git apply --check /tmp/update.patch
           git apply /tmp/update.patch
           test "$(node -p "require('./package.json').version")" = "1.6.0"
-          rm .github/staging/v1.6.0.patch.br.b64.txt
+          rm .github/staging/v1.6.0.patch.br.b64.txt .github/staging/v1.6.0.patch.br.b64.[0-4]
 
       - name: Test and package
         shell: bash
