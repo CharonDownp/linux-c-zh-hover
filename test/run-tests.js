@@ -359,7 +359,7 @@ test('HTTP 代理转发 + 连接测试；不携带 token 到 GET 探测',async()
 });
 test('v1.4 编辑内置说明：简洁版与详细版可分别修改，保存后悬停立即生效',async()=>{
   const pkg=require('../package.json');
-  assert.equal(pkg.version,'1.6.1');
+  assert.equal(pkg.version,'1.6.2');
   assert.equal(typeof commands['zhLinuxApiHover.editExplanation'],'function');
   const name='fork';
   const doc={getWordRangeAtPosition:()=>({end:{line:0,character:4}}),getText:()=>name,lineAt:()=>({text:'fork();'})};
@@ -406,7 +406,7 @@ test('编辑合法性校验：不允许空返回值、过量参数或恶意 HTML
   assert.doesNotMatch(hover.contents.value,/我自己写的简洁版/);
 });
 test('v1.5 默认按钮：留空仍使用旧版查询行为，出现可选要求弹窗',async()=>{
-  assert.equal(require('../package.json').version,'1.6.1');
+  assert.equal(require('../package.json').version,'1.6.2');
   assert.equal(typeof commands['zhLinuxApiHover.refreshFunction'],'function');
   assert.equal(typeof extension.promptAiInstructions,'function');
   const num=promptLog.length;
@@ -665,6 +665,85 @@ test('旧离线说明中的 C 示例无需迁移，悬停与详细页正确保�
     assert.ok(lastPanel.webview.html.includes('white-space:pre;overflow-x:auto'));
     assert.ok(lastPanel.webview.html.includes('<pre class="c-snippet"><code>#include &lt;sys/socket.h&gt;'));
   } finally {settingsObj['hover.detailMode']=old;}
+});
+test('v1.6.2 待审核结果可关闭并重开；重启仍在；不自动覆盖旧词条',async()=>{
+  assert.equal(typeof commands['zhLinuxApiHover.reviewPending'],'function');
+  const name='durable_api';
+  const old=['int durable_api(void);','旧版解释，不应被自动覆盖',[], '成功 0','失败 -1','旧备注'];
+  const store=new Storage(ctx());await store.init();await store.putOffline(name,old,'用户离线词条','手动校对');
+  await commands['zhLinuxApiHover.reloadOffline']();
+  const server=http.createServer((req,res)=>{
+    req.resume();req.on('end',()=>{
+      server.count=(server.count||0)+1;
+      res.setHeader('content-type','application/json');
+      res.end(JSON.stringify({choices:[{message:{content:JSON.stringify({name,known:true,prototype:'int durable_api(void);',summary:'新版 AI 解释',params:[],success:'成功 123',failure:'失败 -1',note:'新备注'})}}]}));
+    });
+  });
+  await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
+  try {
+    settingsObj['ai.baseUrl']=`http://127.0.0.1:${server.address().port}/v1`;
+    settingsObj['ai.model']='review-test';secret.value='test-secret';nextPromptText='';
+    await commands['zhLinuxApiHover.refreshFunction'](name);
+    assert.equal(lastPanel.viewType,'zhLinuxAiReview');
+    assert.match(lastPanel.webview.html,/确认保存到离线库/);
+    assert.match(lastPanel.webview.html,/关闭页面.*重启 VS Code/);
+    assert.match(lastPanel.webview.html,/新版 AI 解释/);
+    assert.match(lastPanel.webview.html,/旧版解释，不应被自动覆盖/);
+    const disk=new Storage(ctx());await disk.init();
+    assert.equal(disk.offline[name].entry[1],'旧版解释，不应被自动覆盖');
+    assert.equal(disk.pending[name].entry[1],'新版 AI 解释');
+    assert.ok(!JSON.stringify(disk.pending).includes('test-secret'));
+    const previous=lastPanel;
+    previous.dispose();
+    await commands['zhLinuxApiHover.reviewPending'](name);
+    assert.equal(lastPanel.viewType,'zhLinuxAiReview');
+    assert.match(lastPanel.webview.html,/新版 AI 解释/);
+    const doc={getWordRangeAtPosition:()=>({end:{line:0,character:11}}),getText:()=>name,lineAt:()=>({text:`${name}();`})};
+    const hover=await hoverFn(doc,{line:0,character:1},{});
+    assert.match(hover.contents.value,/查看待审核 AI 结果/);
+    const originalWarning=vscode.window.showWarningMessage;
+    try {
+      vscode.window.showWarningMessage=async()=>undefined;
+      await lastPanel.handleMessage({type:'save'});
+      assert.equal(lastPanel.lastResponse.ok,false,'取消覆盖后保留待审核结果');
+      const unchanged=new Storage(ctx());await unchanged.init();
+      assert.equal(unchanged.offline[name].entry[1],'旧版解释，不应被自动覆盖');
+      assert.ok(unchanged.pending[name]);
+      vscode.window.showWarningMessage=async()=> '确认覆盖';
+      await lastPanel.handleMessage({type:'save'});
+      assert.equal(lastPanel.lastResponse.ok,true);
+      const accepted=new Storage(ctx());await accepted.init();
+      assert.equal(accepted.offline[name].entry[1],'新版 AI 解释');
+      assert.equal(accepted.pending[name],undefined);
+      assert.equal(server.count,1,'重复打开审核页绝不重新请求 AI');
+    } finally {vscode.window.showWarningMessage=originalWarning;}
+  }finally{await new Promise(ok=>server.close(ok));}
+});
+test('v1.6.2 放弃草稿不影响旧离线说明；旧窗口不能误存新草稿',async()=>{
+  const name='review_discard_api';
+  const entry=['int review_discard_api();','原始说明',[], '0','-1','原始备注'];
+  const persistent=new Storage(ctx());await persistent.init();await persistent.putOffline(name,entry,'原用户说明');
+  await commands['zhLinuxApiHover.reloadOffline']();
+  // 直接经扩展激活流程产生待审核结果，避免依赖之前的通知弹窗。
+  const server=http.createServer((req,res)=>{
+    req.resume();req.on('end',()=>{res.setHeader('content-type','application/json');res.end(JSON.stringify({choices:[{message:{content:JSON.stringify({name,known:true,prototype:'int review_discard_api();',summary:'AI 草稿内容',params:[],success:'0',failure:'-1',note:'补充'})}}]}));});
+  });
+  await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
+  try {
+    settingsObj['ai.baseUrl']=`http://127.0.0.1:${server.address().port}/v1`;
+    settingsObj['ai.model']='review-test';secret.value='test-secret';nextPromptText='';
+    await commands['zhLinuxApiHover.refreshFunction'](name);
+    const oldPanel=lastPanel;
+    await commands['zhLinuxApiHover.refreshFunction'](name);
+    await oldPanel.handleMessage({type:'save'});
+    assert.equal(oldPanel.lastResponse.ok,false);
+    assert.match(oldPanel.lastResponse.message,/新结果替代/);
+    await lastPanel.handleMessage({type:'discard'});
+    assert.equal(lastPanel.lastResponse.ok,true);
+    const disk=new Storage(ctx());await disk.init();
+    assert.equal(disk.offline[name].entry[1],'原始说明');
+    assert.equal(disk.pending[name],undefined);
+  } finally {await new Promise(ok=>server.close(ok));}
 });
 (async()=>{
   let errors=0;

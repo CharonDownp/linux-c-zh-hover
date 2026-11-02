@@ -2,7 +2,7 @@
   "name": "zh-linux-api-hover",
   "displayName": "C/C++ 中文标识符速查（Linux）",
   "description": "面向 C/C++ 的中文悬停速查：函数、结构体、类型、宏、成员及变量；AI 按需解释、局部修改与可持久化离线知识库。",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "publisher": "local-study-tools",
   "engines": {
     "vscode": "^1.75.0"
@@ -54,6 +54,11 @@
       {
         "command": "zhLinuxApiHover.saveOffline",
         "title": "将 AI 解释保存到离线知识库",
+        "category": "Linux C 中文速查"
+      },
+      {
+        "command": "zhLinuxApiHover.reviewPending",
+        "title": "查看待审核的 AI 解释 / 确认保存",
         "category": "Linux C 中文速查"
       },
       {
