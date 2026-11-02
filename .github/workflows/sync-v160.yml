@@ -17,6 +17,8 @@ jobs:
           fetch-depth: 0
 
       - name: Validate and apply source update
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -33,10 +35,44 @@ jobs:
           }
           fs.writeFileSync('/tmp/update.patch',patch);
           JS
-          git apply --check /tmp/update.patch
-          git apply /tmp/update.patch
+          # The GitHub repository was previously uploaded without its lib/ directory.
+          # Recover the original lib files from the already-published v1.5.0 VSIX.
+          mkdir -p /tmp/v15assets lib
+          gh release download v1.5.0 --pattern 'zh-linux-api-hover-1.5.0.vsix' --dir /tmp/v15assets
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          with ZipFile('/tmp/v15assets/zh-linux-api-hover-1.5.0.vsix') as z:
+              for name in z.namelist():
+                  if name.startswith('extension/lib/') and name.endswith('.js'):
+                      target = Path(name.removeprefix('extension/'))
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      target.write_bytes(z.read(name))
+          PY
+
+          # The historical repository also lacked test/run-tests.js and tools/build_vsix.py.
+          # These are transmitted separately and verified against their exact SHA256.
+          node - <<'JS'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const zlib = require('node:zlib');
+          const crypto = require('node:crypto');
+          const encoded = Array.from({length:3},(_,i)=>fs.readFileSync('.github/staging/v1.6.0.missing.br.b64.'+i,'utf8').trim()).join('');
+          const archive = zlib.brotliDecompressSync(Buffer.from(encoded,'base64'));
+          const digest = crypto.createHash('sha256').update(archive).digest('hex');
+          if (digest !== '32e79d7302ab2d34c2fc2265185491d25702c96051ab92cd9486dd343a0c875a') throw new Error('Missing source archive checksum mismatch');
+          const parts=archive.toString('utf8').split('\0');
+          if (parts.length !== 5 || parts[0] !== 'test/run-tests.js' || parts[2] !== 'tools/build_vsix.py' || parts[4] !== '') throw new Error('Unexpected source archive content');
+          for (let i=0;i<4;i+=2) {
+            fs.mkdirSync(path.dirname(parts[i]),{recursive:true});
+            fs.writeFileSync(parts[i],parts[i+1]);
+          }
+          JS
+          git apply --check --exclude=test/run-tests.js --exclude=tools/build_vsix.py /tmp/update.patch
+          git apply --exclude=test/run-tests.js --exclude=tools/build_vsix.py /tmp/update.patch
           test "$(node -p "require('./package.json').version")" = "1.6.0"
           rm .github/staging/v1.6.0.patch.br.b64.txt .github/staging/v1.6.0.patch.br.b64.[0-4]
+          rm .github/staging/v1.6.0.missing.br.b64.[0-2]
 
       - name: Test and package
         shell: bash
